@@ -19,7 +19,7 @@ const transportOptions = [
 ];
 
 const categoryIcons: Record<Category, any> = {
-  Beach: Waves,
+  Beach: Waves, 
   Rural: TreePine,
   "City Tours": Building2,
   Cultural: Landmark

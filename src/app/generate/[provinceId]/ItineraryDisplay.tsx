@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Trash2, Pencil, FileText, MapPin, Clock, Download } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { Province, Category, getSpotsByCategory } from "@/app/data/davaoData";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { getAuth } from "firebase/auth";
 import jsPDF from "jspdf";
@@ -12,6 +12,7 @@ import jsPDF from "jspdf";
 /* ---------------- TYPES ---------------- */
 type Activity = { id: string; name: string; time: string };
 type DayPlan = { day: number; activities: Activity[] };
+
 type Props = {
   province: Province;
   preferences: Category[];
@@ -50,15 +51,23 @@ const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) =
   const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
 /* ---------------- ITINERARY BUILDER ---------------- */
-const buildItinerary = (province: Province, preferences: Category[], days: number): DayPlan[] => {
+const buildItinerary = (
+  province: Province,
+  preferences: Category[],
+  days: number
+): DayPlan[] => {
   const itinerary: DayPlan[] = [];
-  let remainingSpots = preferences.flatMap(cat => getSpotsByCategory(province, cat));
+  let remainingSpots = preferences.flatMap((cat) =>
+    getSpotsByCategory(province, cat)
+  );
 
   for (let day = 1; day <= days; day++) {
     const daySpots: typeof remainingSpots = [];
@@ -93,44 +102,84 @@ const buildItinerary = (province: Province, preferences: Category[], days: numbe
       })),
     });
   }
-
   return itinerary;
 };
 
 /* ---------------- COMPONENT ---------------- */
-export default function ItineraryDisplay({ province, preferences, days, pax, accommodation, transport, onEdit }: Props) {
+export default function ItineraryDisplay({
+  province,
+  preferences,
+  days,
+  pax,
+  accommodation,
+  transport,
+  onEdit,
+}: Props) {
   const [itinerary, setItinerary] = useState<DayPlan[]>([]);
-  const [editModal, setEditModal] = useState<{ open: boolean; day: number; activityId: string | null }>({ open: false, day: 0, activityId: null });
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; day: number; activityId: string | null }>({ open: false, day: 0, activityId: null });
+  const [editModal, setEditModal] = useState<{
+    open: boolean;
+    day: number;
+    activityId: string | null;
+  }>({ open: false, day: 0, activityId: null });
+  const [deleteModal, setDeleteModal] = useState<{
+    open: boolean;
+    day: number;
+    activityId: string | null;
+  }>({ open: false, day: 0, activityId: null });
   const [selectedValue, setSelectedValue] = useState("");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const auth = getAuth();
   const user = auth.currentUser;
 
-  useEffect(() => setItinerary(buildItinerary(province, preferences, days)), [province, preferences, days]);
+  useEffect(
+    () => setItinerary(buildItinerary(province, preferences, days)),
+    [province, preferences, days]
+  );
 
   const saveToFirestore = async () => {
     if (!user) {
       alert("Please sign in to save your itinerary!");
       return;
     }
+
+    if (isSaved) {
+      alert("This itinerary has already been saved!");
+      return;
+    }
+
+    setIsSaving(true);
+
     try {
-      const userItineraryRef = doc(db, "itineraries", user.uid);
-      await setDoc(userItineraryRef, { 
-        province: province.name, 
-        preferences, 
-        days, 
-        pax,
-        accommodation,
-        transport,
-        itinerary, 
-        timestamp: new Date() 
+      // Create a unique document ID using timestamp
+      const timestamp = new Date().getTime();
+      const itineraryId = `${user.uid}_${timestamp}`;
+      
+      const itineraryRef = doc(db, "itineraries", itineraryId);
+      
+      await setDoc(itineraryRef, {
+        userId: user.uid,
+        province: province.name,
+        provinceId: province.id,
+        preferences: preferences,
+        days: days,
+        pax: pax,
+        accommodation: accommodation,
+        transport: transport,
+        itinerary: itinerary,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+
+      setIsSaved(true);
       alert("✅ Itinerary saved successfully!");
     } catch (error) {
-      console.error("Error saving:", error);
-      alert("Failed to save itinerary. Please try again.");
+      console.error("Error saving itinerary:", error);
+      alert("❌ Failed to save itinerary. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -141,46 +190,57 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
 
   const saveEdit = () => {
     if (!editModal.activityId) return;
-    setItinerary(prev => prev.map(d =>
-      d.day === editModal.day
-        ? { ...d, activities: d.activities.map(a => a.id === editModal.activityId ? { ...a, name: selectedValue } : a) }
-        : d
-    ));
+    setItinerary((prev) =>
+      prev.map((d) =>
+        d.day === editModal.day
+          ? {
+              ...d,
+              activities: d.activities.map((a) =>
+                a.id === editModal.activityId ? { ...a, name: selectedValue } : a
+              ),
+            }
+          : d
+      )
+    );
     setEditModal({ open: false, day: 0, activityId: null });
   };
 
-  const openDeleteModal = (day: number, activityId: string | null) => setDeleteModal({ open: true, day, activityId });
+  const openDeleteModal = (day: number, activityId: string | null) =>
+    setDeleteModal({ open: true, day, activityId });
 
   const confirmDelete = () => {
     if (deleteModal.activityId) {
-      setItinerary(prev => prev.map(d =>
-        d.day === deleteModal.day
-          ? { ...d, activities: d.activities.filter(a => a.id !== deleteModal.activityId) }
-          : d
-      ));
+      setItinerary((prev) =>
+        prev.map((d) =>
+          d.day === deleteModal.day
+            ? {
+                ...d,
+                activities: d.activities.filter((a) => a.id !== deleteModal.activityId),
+              }
+            : d
+        )
+      );
     } else {
-      setItinerary(prev => prev.filter(d => d.day !== deleteModal.day));
+      setItinerary((prev) => prev.filter((d) => d.day !== deleteModal.day));
     }
     setDeleteModal({ open: false, day: 0, activityId: null });
   };
 
   const generatePDF = () => {
     setIsGeneratingPDF(true);
-    
     try {
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
       });
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      const contentWidth = pageWidth - (2 * margin);
+      const contentWidth = pageWidth - 2 * margin;
       let yPosition = margin;
 
-      // Helper function to check if we need a new page
       const checkNewPage = (requiredHeight: number) => {
         if (yPosition + requiredHeight > pageHeight - margin) {
           pdf.addPage();
@@ -190,100 +250,88 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
         return false;
       };
 
-      // Header
-      pdf.setFillColor(14, 165, 233); // Sky blue
-      pdf.rect(0, 0, pageWidth, 40, 'F');
+      pdf.setFillColor(14, 165, 233);
+      pdf.rect(0, 0, pageWidth, 40, "F");
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(24);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${province.name} Itinerary`, pageWidth / 2, 20, { align: 'center' });
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`${province.name} Itinerary`, pageWidth / 2, 20, { align: "center" });
       pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`${days} Day${days > 1 ? 's' : ''} • ${pax} Pax • ${accommodation}`, pageWidth / 2, 30, { align: 'center' });
+      pdf.setFont("helvetica", "normal");
+      pdf.text(
+        `${days} Day${days > 1 ? "s" : ""} • ${pax} Pax • ${accommodation}`,
+        pageWidth / 2,
+        30,
+        { align: "center" }
+      );
 
       yPosition = 50;
-
-      // Trip Details Box
       pdf.setFillColor(240, 249, 255);
-      pdf.roundedRect(margin, yPosition, contentWidth, 25, 3, 3, 'F');
+      pdf.roundedRect(margin, yPosition, contentWidth, 25, 3, 3, "F");
       pdf.setTextColor(3, 105, 161);
       pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Trip Details', margin + 5, yPosition + 7);
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Trip Details", margin + 5, yPosition + 7);
+      pdf.setFont("helvetica", "normal");
       pdf.setTextColor(71, 85, 105);
       pdf.text(`Transport: ${transport}`, margin + 5, yPosition + 14);
-      pdf.text(`Categories: ${preferences.join(', ')}`, margin + 5, yPosition + 21);
-
+      pdf.text(`Categories: ${preferences.join(", ")}`, margin + 5, yPosition + 21);
       yPosition += 35;
 
-      // Itinerary days
       itinerary.forEach((dayPlan, dayIndex) => {
         checkNewPage(20);
-
-        // Day header
         pdf.setFillColor(14, 165, 233);
-        pdf.roundedRect(margin, yPosition, contentWidth, 12, 2, 2, 'F');
+        pdf.roundedRect(margin, yPosition, contentWidth, 12, 2, 2, "F");
         pdf.setTextColor(255, 255, 255);
         pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
+        pdf.setFont("helvetica", "bold");
         pdf.text(`Day ${dayPlan.day}`, margin + 5, yPosition + 8);
-
         yPosition += 17;
 
-        // Activities
         dayPlan.activities.forEach((activity, actIndex) => {
           const activityHeight = 18;
           checkNewPage(activityHeight);
-
-          // Activity box
           const boxY = yPosition;
           pdf.setFillColor(255, 255, 255);
           pdf.setDrawColor(186, 230, 253);
           pdf.setLineWidth(0.5);
-          pdf.roundedRect(margin, boxY, contentWidth, activityHeight, 2, 2, 'FD');
-
-          // Time icon & text
+          pdf.roundedRect(margin, boxY, contentWidth, activityHeight, 2, 2, "FD");
           pdf.setFillColor(14, 165, 233);
-          pdf.circle(margin + 5, boxY + 6, 2, 'F');
+          pdf.circle(margin + 5, boxY + 6, 2, "F");
           pdf.setTextColor(14, 165, 233);
           pdf.setFontSize(9);
-          pdf.setFont('helvetica', 'normal');
+          pdf.setFont("helvetica", "normal");
           pdf.text(activity.time, margin + 10, boxY + 7);
-
-          // Activity name
           pdf.setTextColor(30, 58, 138);
           pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'bold');
+          pdf.setFont("helvetica", "bold");
           const activityText = pdf.splitTextToSize(activity.name, contentWidth - 20);
           pdf.text(activityText, margin + 10, boxY + 13);
-
           yPosition += activityHeight + 3;
         });
 
         yPosition += 5;
       });
 
-      // Footer
       const totalPages = pdf.internal.pages.length - 1;
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
         pdf.setFontSize(8);
         pdf.setTextColor(148, 163, 184);
-        pdf.setFont('helvetica', 'italic');
+        pdf.setFont("helvetica", "italic");
         pdf.text(
           `Generated on ${new Date().toLocaleDateString()} • Page ${i} of ${totalPages}`,
           pageWidth / 2,
           pageHeight - 10,
-          { align: 'center' }
+          { align: "center" }
         );
       }
 
-      pdf.save(`${province.name}_Itinerary_${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`${province.name}_Itinerary_${new Date().toISOString().split("T")[0]}.pdf`);
       alert("✅ PDF downloaded successfully!");
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -302,7 +350,8 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
             Your {province.name} Adventure
           </h1>
           <p className="text-slate-600 text-lg">
-            {days} Day{days > 1 ? 's' : ''} • {pax} Traveler{pax > 1 ? 's' : ''} • {accommodation}
+            {days} Day{days > 1 ? "s" : ""} • {pax} Traveler{pax > 1 ? "s" : ""} •{" "}
+            {accommodation}
           </p>
         </motion.div>
 
@@ -321,10 +370,15 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
           </button>
           <button
             onClick={saveToFirestore}
-            className="px-6 py-3 rounded-full bg-linear-to-r from-green-500 to-emerald-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-2"
+            disabled={isSaving || isSaved}
+            className={`px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 ${
+              isSaved
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-linear-to-r from-green-500 to-emerald-600 text-white hover:scale-105"
+            } ${isSaving ? "opacity-70 cursor-wait" : ""}`}
           >
             <Download size={18} />
-            Save to Cloud
+            {isSaving ? "Saving..." : isSaved ? "Already Saved" : "Save to Account"}
           </button>
           <button
             onClick={generatePDF}
@@ -332,10 +386,11 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
             className="px-6 py-3 rounded-full bg-linear-to-r from-purple-500 to-pink-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             <FileText size={18} />
-            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+            {isGeneratingPDF ? "Generating..." : "Download PDF"}
           </button>
         </motion.div>
 
+        {/* Rest of the component remains the same... */}
         {/* Itinerary Cards */}
         <div className="space-y-8">
           {itinerary.map((dayPlan, dayIndex) => (
@@ -346,17 +401,13 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
               transition={{ delay: dayIndex * 0.1 }}
               className="relative"
             >
-              {/* Day Card */}
               <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-sky-100">
-                {/* Day Header */}
                 <div className="bg-linear-to-r from-sky-500 to-blue-600 px-6 py-4 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <div className="bg-white/20 backdrop-blur-sm rounded-full w-12 h-12 flex items-center justify-center">
                       <span className="text-white font-bold text-lg">{dayPlan.day}</span>
                     </div>
-                    <h2 className="text-2xl font-extrabold text-white">
-                      Day {dayPlan.day}
-                    </h2>
+                    <h2 className="text-2xl font-extrabold text-white">Day {dayPlan.day}</h2>
                   </div>
                   <button
                     onClick={() => openDeleteModal(dayPlan.day, null)}
@@ -366,7 +417,6 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
                   </button>
                 </div>
 
-                {/* Activities List */}
                 <div className="p-6 space-y-3">
                   <AnimatePresence>
                     {dayPlan.activities.map((activity, actIndex) => (
@@ -378,21 +428,17 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
                         transition={{ delay: actIndex * 0.05 }}
                         className="group relative bg-linear-to-r from-sky-50 to-blue-50 rounded-2xl p-5 border-2 border-sky-200 hover:border-sky-400 hover:shadow-lg transition-all duration-200"
                       >
-                        {/* Activity Number Badge */}
                         <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-linear-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
                           {actIndex + 1}
                         </div>
-
                         <div className="flex justify-between items-start ml-6">
                           <div className="flex-1">
-                            {/* Time */}
                             <div className="flex items-center gap-2 mb-2">
                               <Clock size={16} className="text-sky-500" />
                               <p className="text-sm font-semibold text-sky-600">
                                 {activity.time}
                               </p>
                             </div>
-                            {/* Activity Name */}
                             <div className="flex items-start gap-2">
                               <MapPin size={18} className="text-blue-600 mt-1 shrink-0" />
                               <p className="font-bold text-slate-800 text-lg leading-tight">
@@ -400,11 +446,11 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
                               </p>
                             </div>
                           </div>
-
-                          {/* Action Buttons */}
                           <div className="flex gap-2 ml-4">
                             <button
-                              onClick={() => openEditModal(dayPlan.day, activity.id, activity.name)}
+                              onClick={() =>
+                                openEditModal(dayPlan.day, activity.id, activity.name)
+                              }
                               className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
                             >
                               <Pencil size={16} />
@@ -426,7 +472,6 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
           ))}
         </div>
 
-        {/* Empty State */}
         {itinerary.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -438,7 +483,7 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
         )}
       </div>
 
-      {/* Edit Modal */}
+      {/* Modals remain the same... */}
       <AnimatePresence>
         {editModal.open && (
           <motion.div
@@ -456,7 +501,6 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
               className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl"
             >
               <h3 className="text-2xl font-bold mb-6 text-slate-800">Select New Place</h3>
-              
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-sky-700 mb-2">
@@ -475,7 +519,6 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
                     ))}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-purple-700 mb-2">
                     Hotels
@@ -494,7 +537,6 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
                   </select>
                 </div>
               </div>
-
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => setEditModal({ open: false, day: 0, activityId: null })}
@@ -514,7 +556,6 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
         )}
       </AnimatePresence>
 
-      {/* Delete Modal */}
       <AnimatePresence>
         {deleteModal.open && (
           <motion.div
@@ -535,16 +576,13 @@ export default function ItineraryDisplay({ province, preferences, days, pax, acc
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 size={32} className="text-red-600" />
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-slate-800">
-                  Confirm Deletion
-                </h3>
+                <h3 className="text-xl font-bold mb-2 text-slate-800">Confirm Deletion</h3>
                 <p className="text-slate-600 mb-6">
-                  {deleteModal.activityId 
+                  {deleteModal.activityId
                     ? "Are you sure you want to remove this activity?"
                     : "Are you sure you want to delete this entire day?"}
                 </p>
               </div>
-
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteModal({ open: false, day: 0, activityId: null })}
