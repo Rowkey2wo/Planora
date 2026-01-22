@@ -5,9 +5,11 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { provinces, Province, Destination, Hotel } from "@/app/data/davaoData";
+import { provinces, Province } from "@/app/data/davaoData";
 
-const davaoDelSur: Province | undefined = provinces.find(p => p.id === "davao-del-sur");
+const davaoDelSur: Province | undefined = provinces.find(
+  (p) => p.id === "davao-del-sur"
+);
 
 interface ExperienceCard {
   id: number;
@@ -50,45 +52,50 @@ export default function Home() {
 
   return (
     <main className="min-h-screen w-full overflow-x-hidden text-black">
-
       {/* HERO */}
-      <section className="bg-linear-to-b from-sky-500 via-blue-400 to-white px-4 sm:px-8 lg:px-16 py-16">
+      <section className="bg-linear-to-b from-sky-500 via-blue-400 to-white px-4 sm:px-8 lg:px-16 py-32">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          
           {/* Text */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
           >
             <img
               src="/PlanoraTextOnly.png"
               alt="Planora"
-              className="w-48 sm:w-64 mb-6"
+              className="w-48 sm:w-90 mb-6"
             />
 
-            <h1 className="text-sm sm:text-base tracking-widest text-white/80 mb-6">
+            <h1 className="text-sm sm:text-2xl tracking-widest text-white/80 mb-6">
               Smart planning, goals aligning
             </h1>
 
-            <p className="text-sm sm:text-base lg:text-lg text-white leading-relaxed max-w-xl">
-              Planora is a smart itinerary generator designed for foreigners and first-time visitors
-              exploring the Davao Region—suggesting destinations, routes, and experiences tailored to local culture.
+            <p className="text-sm sm:text-base lg:text-lg tracking-wider text-white leading-relaxed max-w-xl">
+              Planora is a smart itinerary generator designed for foreigners and
+              first-time visitors exploring the Davao Region—suggesting
+              destinations, routes, and experiences tailored to local culture.
             </p>
 
-            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="mt-8 flex flex-col sm:flex-row gap-4"
+            >
               <Link
                 href="LoginAndRegister"
                 className="rounded-full bg-blue-600 px-6 py-3 text-white font-semibold text-center hover:bg-blue-500 transition"
               >
                 Get Started
               </Link>
-            </div>
+            </motion.div>
           </motion.div>
 
           {/* Image */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, x: 40, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ duration: 0.8 }}
             className="flex justify-center"
           >
             <img
@@ -102,9 +109,13 @@ export default function Home() {
 
       {/* VIDEO SECTION */}
       <section className="px-4 sm:px-8 lg:px-16 py-16 bg-white">
-        <motion.div className="rounded-3xl bg-amber-50 overflow-hidden">
+        <motion.div
+          className="rounded-3xl bg-amber-50 overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 sm:p-10 items-center">
-
             <video
               src="/WakeUpDavao.mp4"
               autoPlay
@@ -125,6 +136,7 @@ export default function Home() {
               <Link href="LoginAndRegister">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                   className="bg-black text-white px-6 py-3 rounded-lg"
                 >
                   Search Here
@@ -140,19 +152,25 @@ export default function Home() {
         <h2 className="text-xl sm:text-2xl font-bold mb-2">
           Top Experiences in Davao del Sur
         </h2>
-        <p className="text-gray-500 mb-8">
-          Best spots and hotels we recommend
-        </p>
+        <p className="text-gray-500 mb-8">Best spots and hotels we recommend</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {visibleCards.map(item => (
+          {visibleCards.map((item, index) => (
             <motion.div
               key={item.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1, duration: 0.5 }}
               whileHover={{ y: -6 }}
               className="rounded-xl bg-white shadow hover:shadow-xl transition overflow-hidden"
             >
               <div className="relative h-48">
-                <Image src={item.image} alt={item.title} fill className="object-cover" />
+                <Image
+                  src={item.image}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
                 <button className="absolute top-3 right-3 bg-white p-2 rounded-full shadow">
                   <Heart className="w-4 h-4" />
                 </button>
@@ -165,7 +183,8 @@ export default function Home() {
                 </h3>
 
                 <p className="mt-2 text-sm">
-                  from <span className="text-green-700 font-semibold">{item.price}</span>
+                  from{" "}
+                  <span className="text-green-700 font-semibold">{item.price}</span>
                 </p>
               </div>
             </motion.div>
@@ -174,12 +193,14 @@ export default function Home() {
 
         {!showAll && (
           <div className="flex justify-center mt-10">
-            <button
+            <motion.button
               onClick={() => setShowAll(true)}
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
               className="rounded-full bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 transition"
             >
               See more experiences
-            </button>
+            </motion.button>
           </div>
         )}
       </section>
@@ -187,14 +208,22 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="bg-[#0d1a44] text-white px-4 sm:px-8 lg:px-16 py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 max-w-7xl mx-auto">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
             <h4 className="text-2xl font-bold text-[#efd1a1] mb-4">Planora</h4>
             <p className="text-gray-400 text-sm leading-relaxed">
               Smart itinerary planning for stress-free travel in the Davao Region.
             </p>
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+          >
             <h4 className="font-semibold mb-4">Explore</h4>
             <ul className="space-y-2 text-gray-400 text-sm">
               <li>Destinations</li>
@@ -202,18 +231,26 @@ export default function Home() {
               <li>Mountains</li>
               <li>City Tours</li>
             </ul>
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             <h4 className="font-semibold mb-4">Planora</h4>
             <ul className="space-y-2 text-gray-400 text-sm">
               <li>About</li>
               <li>How It Works</li>
               <li>Travel Tips</li>
             </ul>
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
             <h4 className="font-semibold mb-4">Get Started</h4>
             <Link
               href="LoginAndRegister"
@@ -221,7 +258,7 @@ export default function Home() {
             >
               Create My Itinerary
             </Link>
-          </div>
+          </motion.div>
         </div>
 
         <p className="text-center text-gray-500 text-sm mt-12">
