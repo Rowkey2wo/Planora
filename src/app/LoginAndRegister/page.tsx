@@ -398,7 +398,7 @@ export default function LoginAndRegister() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring" }}
-                className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full mb-4"
+                className="inline-flex items-center justify-center w-20 h-20 bg-linear-to-br from-green-400 to-emerald-500 rounded-full mb-4"
               >
                 <Sparkles className="w-10 h-10 text-white" />
               </motion.div>

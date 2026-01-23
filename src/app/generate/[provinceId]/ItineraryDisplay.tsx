@@ -24,8 +24,6 @@ type Props = {
   onEdit: () => void;
 };
 
-const MAX_PLACES_PER_DAY = 5;
-
 /* ---------------- TIME HELPERS ---------------- */
 const formatTime = (date: Date) =>
   date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
@@ -65,19 +63,34 @@ const buildItinerary = (
   days: number
 ): DayPlan[] => {
   const itinerary: DayPlan[] = [];
-  let remainingSpots = preferences.flatMap((cat) =>
+  
+  // Get all spots from selected categories
+  let allSpots = preferences.flatMap((cat) =>
     getSpotsByCategory(province, cat)
   );
 
-  for (let day = 1; day <= days; day++) {
-    const daySpots: typeof remainingSpots = [];
-    let currentLat = province.coordinates.lat;
-    let currentLng = province.coordinates.lng;
+  // Calculate spots per day
+  const totalSpots = allSpots.length;
+  const spotsPerDay = Math.ceil(totalSpots / days);
 
-    while (daySpots.length < MAX_PLACES_PER_DAY && remainingSpots.length) {
+  // Distribute spots across days
+  let currentLat = province.coordinates.lat;
+  let currentLng = province.coordinates.lng;
+
+  for (let day = 1; day <= days; day++) {
+    const daySpots: typeof allSpots = [];
+    
+    // Calculate how many spots for this day
+    const remainingDays = days - day + 1;
+    const remainingSpots = allSpots.length;
+    const spotsForThisDay = Math.ceil(remainingSpots / remainingDays);
+
+    // Select spots for this day using nearest neighbor algorithm
+    while (daySpots.length < spotsForThisDay && allSpots.length > 0) {
       let nearestIndex = 0;
       let nearestDistance = Infinity;
-      remainingSpots.forEach((spot, i) => {
+      
+      allSpots.forEach((spot, i) => {
         const lat = (spot as any).lat ?? province.coordinates.lat;
         const lng = (spot as any).lng ?? province.coordinates.lng;
         const dist = getDistanceKm(currentLat, currentLng, lat, lng);
@@ -86,13 +99,16 @@ const buildItinerary = (
           nearestIndex = i;
         }
       });
-      const [selected] = remainingSpots.splice(nearestIndex, 1);
+      
+      const [selected] = allSpots.splice(nearestIndex, 1);
       daySpots.push(selected);
       currentLat = (selected as any).lat ?? currentLat;
       currentLng = (selected as any).lng ?? currentLng;
     }
 
+    // Generate time slots for activities
     const times = generateTimeSlots(daySpots.length);
+    
     itinerary.push({
       day,
       activities: daySpots.map((place, i) => ({
@@ -102,6 +118,7 @@ const buildItinerary = (
       })),
     });
   }
+  
   return itinerary;
 };
 
@@ -147,18 +164,17 @@ export default function ItineraryDisplay({
   );
 
   // Helper to find spot or hotel image
-const findPlaceImage = (
-  placeName: string
-): { image: string; type: "spot" | "hotel" } | null => {
-  const spot = province.spots.find((s) => s.name === placeName);
-  if (spot) return { image: spot.image, type: "spot" };
+  const findPlaceImage = (
+    placeName: string
+  ): { image: string; type: "spot" | "hotel" } | null => {
+    const spot = province.spots.find((s) => s.name === placeName);
+    if (spot) return { image: spot.image, type: "spot" };
 
-  const hotel = province.hotels.find((h) => h.name === placeName);
-  if (hotel) return { image: hotel.image, type: "hotel" };
+    const hotel = province.hotels.find((h) => h.name === placeName);
+    if (hotel) return { image: hotel.image, type: "hotel" };
 
-  return null;
-};
-
+    return null;
+  };
 
   const openImageModal = (placeName: string) => {
     const place = findPlaceImage(placeName);
@@ -386,6 +402,9 @@ const findPlaceImage = (
     }
   };
 
+  // Calculate total spots in itinerary
+  const totalSpotsInItinerary = itinerary.reduce((sum, day) => sum + day.activities.length, 0);
+
   return (
     <div className="min-h-screen bg-linear-to-br from-sky-50 via-blue-50 to-indigo-50 py-10 px-4">
       <div className="max-w-5xl mx-auto">
@@ -400,7 +419,7 @@ const findPlaceImage = (
           </h1>
           <p className="text-slate-600 text-lg">
             {days} Day{days > 1 ? "s" : ""} • {pax} Traveler{pax > 1 ? "s" : ""} •{" "}
-            {accommodation}
+            {totalSpotsInItinerary} Spots • {accommodation}
           </p>
         </motion.div>
 
@@ -455,7 +474,10 @@ const findPlaceImage = (
                     <div className="bg-white/20 backdrop-blur-sm rounded-full w-12 h-12 flex items-center justify-center">
                       <span className="text-white font-bold text-lg">{dayPlan.day}</span>
                     </div>
-                    <h2 className="text-2xl font-extrabold text-white">Day {dayPlan.day}</h2>
+                    <div>
+                      <h2 className="text-2xl font-extrabold text-white">Day {dayPlan.day}</h2>
+                      <p className="text-white/80 text-sm">{dayPlan.activities.length} activities</p>
+                    </div>
                   </div>
                   <button
                     onClick={() => openDeleteModal(dayPlan.day, null)}
@@ -556,7 +578,6 @@ const findPlaceImage = (
               onClick={(e) => e.stopPropagation()}
               className="relative bg-white rounded-3xl overflow-hidden shadow-2xl max-w-3xl w-full"
             >
-              {/* Close Button */}
               <button
                 onClick={() => setImageModal({ open: false, name: "", image: "", type: "spot" })}
                 className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-full p-2 hover:bg-white transition-all shadow-lg"
@@ -564,20 +585,18 @@ const findPlaceImage = (
                 <X size={24} className="text-slate-700" />
               </button>
 
-              {/* Image */}
               <div className="relative">
-              <img
-  src={`/davao/${imageModal.image}`}
-  alt={imageModal.name}
-  className="w-full h-96 object-cover"
-  onError={(e) => {
-    e.currentTarget.src = "/davao/placeholder.jpg";
-  }}
-/>
+                <img
+                  src={`/davao/${imageModal.image}`}
+                  alt={imageModal.name}
+                  className="w-full h-96 object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = "/davao/placeholder.jpg";
+                  }}
+                />
 
                 <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
                 
-                {/* Type Badge */}
                 <div className="absolute top-4 left-4">
                   <span className={`px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-md ${
                     imageModal.type === "spot" 
@@ -588,7 +607,6 @@ const findPlaceImage = (
                   </span>
                 </div>
 
-                {/* Name Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-6">
                   <h3 className="text-white text-3xl font-bold drop-shadow-lg">
                     {imageModal.name}
@@ -622,7 +640,6 @@ const findPlaceImage = (
             >
               <h3 className="text-2xl font-bold mb-6 text-slate-800">Select New Place</h3>
               
-              {/* Image Preview */}
               {previewImage && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}

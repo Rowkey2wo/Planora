@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams, notFound } from "next/navigation";
-import { ArrowLeft, Check, Users, Calendar, DollarSign, Car, Bus, Waves, TreePine, Building2, Landmark } from "lucide-react";
+import { ArrowLeft, Check, Users, Calendar, DollarSign, Car, Bus, Waves, TreePine, Building2, Landmark, Hotel } from "lucide-react";
 import ItineraryDisplay from "./ItineraryDisplay";
 import { provinces, getAvailableCategories, type Category, getSpotsByCategory } from "@/app/data/davaoData";
 
@@ -46,6 +46,14 @@ export default function ItineraryForm() {
   const [accommodation, setAccommodation] = useState("");
   const [transport, setTransport] = useState("");
 
+  // Calculate total spots based on selected categories
+  const totalSpots = preferences.reduce((sum, cat) => {
+    return sum + getSpotsByCategory(province, cat).length;
+  }, 0);
+
+  // Calculate max days (total spots available)
+  const maxDays = Math.max(1, totalSpots);
+
   const totalSteps = 7;
   const canProceed = () => {
     switch (currentStep) {
@@ -58,6 +66,13 @@ export default function ItineraryForm() {
       default: return true;
     }
   };
+
+  // Reset days when preferences change
+  useEffect(() => {
+    if (days > maxDays) {
+      setDays(maxDays);
+    }
+  }, [preferences, maxDays]);
 
   /* ---------------- STEP RENDER ---------------- */
   const renderStep = () => {
@@ -75,6 +90,7 @@ export default function ItineraryForm() {
               {availableCategories.map(cat => {
                 const Icon = categoryIcons[cat];
                 const selected = preferences.includes(cat);
+                const spotCount = getSpotsByCategory(province, cat).length;
                 return (
                   <button
                     key={cat}
@@ -92,7 +108,7 @@ export default function ItineraryForm() {
                         </div>
                         <div>
                           <h3 className="font-bold">{cat}</h3>
-                          <p className="text-sm text-gray-500">{province.spots.filter(s => s.category === cat).length} places</p>
+                          <p className="text-sm text-gray-500">{spotCount} places</p>
                         </div>
                       </div>
                       {selected && <Check className="text-sky-500" />}
@@ -101,6 +117,18 @@ export default function ItineraryForm() {
                 );
               })}
             </div>
+
+            {/* Show total spots selected */}
+            {preferences.length > 0 && (
+              <div className="bg-sky-50 border-2 border-sky-200 rounded-xl p-4 text-center">
+                <p className="text-sky-700 font-semibold">
+                  Total Spots Selected: <span className="text-2xl font-bold">{totalSpots}</span>
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  You can plan up to {totalSpots} days for this itinerary
+                </p>
+              </div>
+            )}
 
             {/* Budget */}
             <div className="pt-6 border-t">
@@ -146,39 +174,54 @@ export default function ItineraryForm() {
             <div className="text-4xl font-bold text-sky-600 mt-2">{days} day{days > 1 ? "s" : ""}</div>
             <div className="flex items-center justify-center gap-4 mt-4">
               <button onClick={() => setDays(prev => Math.max(1, prev - 1))} className="p-3 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-md">-</button>
-              <input type="range" min={1} max={14} value={days} onChange={e => setDays(+e.target.value)} className="w-64 accent-sky-500"/>
-              <button onClick={() => setDays(prev => Math.min(14, prev + 1))} className="p-3 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-md">+</button>
+              <input type="range" min={1} max={maxDays} value={days} onChange={e => setDays(+e.target.value)} className="w-64 accent-sky-500"/>
+              <button onClick={() => setDays(prev => Math.min(maxDays, prev + 1))} className="p-3 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-md">+</button>
             </div>
+            <p className="text-sm text-gray-500">
+              Maximum {maxDays} days based on {totalSpots} selected spots
+            </p>
           </div>
         );
 
       /* STEP 4 - ACCOMMODATION */
       case 4:
         return (
-          <div className="grid md:grid-cols-2 gap-4">
-            {province.hotels.slice(0, 6).map(h => (
-              <button key={h.name} onClick={() => setAccommodation(h.name)} className={`p-6 rounded-2xl border-2 text-left ${accommodation===h.name?"border-sky-500 bg-sky-50":"border-gray-200"}`}>
-                <h3 className="font-bold">{h.name}</h3>
-                <p className="text-sm text-gray-500">⭐ {h.rating} · {h.priceRange}</p>
-              </button>
-            ))}
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold mb-2">Choose your accommodation</h2>
+              <p className="text-gray-600">Select a hotel for your stay</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4 max-h-125 overflow-y-auto pr-2">
+              {province.hotels.map(h => (
+                <button key={h.name} onClick={() => setAccommodation(h.name)} className={`p-6 rounded-2xl border-2 text-left transition-all ${accommodation===h.name?"border-sky-500 bg-sky-50 shadow-lg":"border-gray-200 hover:border-sky-300"}`}>
+                  <h3 className="font-bold">{h.name}</h3>
+                  <p className="text-sm text-gray-500"><Hotel className="w-6 h-6 text-yellow-600"/></p>
+                </button>
+              ))}
+            </div>
           </div>
         );
 
       /* STEP 5 - TRANSPORT */
       case 5:
         return (
-          <div className="grid md:grid-cols-3 gap-6">
-            {transportOptions.map(opt => {
-              const Icon = opt.icon;
-              return (
-                <button key={opt.id} onClick={() => setTransport(opt.id)} className={`p-6 rounded-2xl border-2 ${transport===opt.id?"border-sky-500 bg-sky-50":"border-gray-200"}`}>
-                  <Icon className="mx-auto mb-3"/>
-                  <h3 className="font-bold">{opt.label}</h3>
-                  <p className="text-sm text-gray-500">{opt.capacity}</p>
-                </button>
-              );
-            })}
+          <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold mb-2">Choose your transport</h2>
+              <p className="text-gray-600">Select how you'll get around</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {transportOptions.map(opt => {
+                const Icon = opt.icon;
+                return (
+                  <button key={opt.id} onClick={() => setTransport(opt.id)} className={`p-6 rounded-2xl border-2 transition-all ${transport===opt.id?"border-sky-500 bg-sky-50 shadow-lg":"border-gray-200 hover:border-sky-300"}`}>
+                    <Icon className="mx-auto mb-3 w-12 h-12"/>
+                    <h3 className="font-bold text-center">{opt.label}</h3>
+                    <p className="text-sm text-gray-500 text-center">{opt.capacity}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         );
 
@@ -186,14 +229,40 @@ export default function ItineraryForm() {
       case 6:
         return (
           <div className="space-y-4">
-            <h2 className="text-3xl font-bold text-center">Review</h2>
-            <div className="p-6 rounded-2xl border">
-              <p><b>Province:</b> {province.name}</p>
-              <p><b>Preferences:</b> {preferences.join(", ")}</p>
-              <p><b>Travelers:</b> {pax}</p>
-              <p><b>Days:</b> {days}</p>
-              <p><b>Hotel:</b> {accommodation}</p>
-              <p><b>Transport:</b> {transport}</p>
+            <h2 className="text-3xl font-bold text-center mb-6">Review Your Trip</h2>
+            <div className="p-6 rounded-2xl border-2 border-sky-200 bg-sky-50 space-y-3">
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Province:</span>
+                <span className="font-bold text-gray-800">{province.name}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Preferences:</span>
+                <span className="font-bold text-gray-800">{preferences.join(", ")}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Total Spots:</span>
+                <span className="font-bold text-gray-800">{totalSpots} places</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Travelers:</span>
+                <span className="font-bold text-gray-800">{pax}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Days:</span>
+                <span className="font-bold text-gray-800">{days}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Spots per day:</span>
+                <span className="font-bold text-gray-800">~{Math.ceil(totalSpots / days)}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="font-semibold text-gray-600">Hotel:</span>
+                <span className="font-bold text-gray-800">{accommodation}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-600">Transport:</span>
+                <span className="font-bold text-gray-800">{transport}</span>
+              </div>
             </div>
           </div>
         );
@@ -211,15 +280,15 @@ export default function ItineraryForm() {
   return (
     <div className="min-h-screen bg-linear-to-br from-sky-50 via-blue-50 to-white px-6 py-16">
       <div className="max-w-5xl mx-auto text-black">
-        <button onClick={() => router.back()} className="mb-6 flex items-center gap-2 mt-5 cursor-pointer"><ArrowLeft/> Back</button>
+        <button onClick={() => router.back()} className="mb-6 flex items-center gap-2 mt-5 cursor-pointer hover:text-sky-600 transition-colors"><ArrowLeft/> Back</button>
         <h1 className="text-4xl font-bold text-center mb-10">Plan your trip to {province.name}</h1>
 
         {currentStep < 7 && <div className="bg-white rounded-3xl shadow-2xl p-10 mb-8">{renderStep()}</div>}
 
         <div className="flex justify-between mb-8">
           {currentStep < 7 && <>
-            <button disabled={currentStep===1} onClick={() => setCurrentStep(s=>s-1)} className="px-6 py-3 rounded-xl bg-white shadow disabled:opacity-40">Previous</button>
-            <button disabled={!canProceed()} onClick={() => setCurrentStep(s=>s+1)} className="px-6 py-3 rounded-xl bg-linear-to-r from-sky-500 to-blue-600 text-white disabled:opacity-40">Next</button>
+            <button disabled={currentStep===1} onClick={() => setCurrentStep(s=>s-1)} className="px-6 py-3 rounded-xl bg-white shadow disabled:opacity-40 hover:bg-gray-50 transition-colors">Previous</button>
+            <button disabled={!canProceed()} onClick={() => setCurrentStep(s=>s+1)} className="px-6 py-3 rounded-xl bg-linear-to-r from-sky-500 to-blue-600 text-white disabled:opacity-40 hover:shadow-lg transition-all">Next</button>
           </>}
         </div>
 
