@@ -630,13 +630,13 @@ const findPlaceImage = (
                   className="mb-6 rounded-2xl overflow-hidden shadow-lg"
                 >
                   <img
-  src={previewImage}
-  alt="Preview"
-  className="w-full h-64 object-cover"
-  onError={(e) => {
-    e.currentTarget.src = "/davao/placeholder.jpg";
-  }}
-/>
+                    src={previewImage}
+                    alt="Preview"
+                    className="w-full h-64 object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/davao/placeholder.jpg";
+                    }}
+                  />
                   <div className="bg-linear-to-r from-sky-50 to-blue-50 p-4">
                     <p className="text-center font-semibold text-slate-700">{selectedValue}</p>
                   </div>
