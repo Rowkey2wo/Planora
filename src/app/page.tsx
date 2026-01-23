@@ -84,7 +84,7 @@ export default function Home() {
             >
               <Link
                 href="LoginAndRegister"
-                className="rounded-full bg-blue-600 px-6 py-3 text-white font-semibold text-center hover:bg-blue-500 transition"
+                className="rounded-full bg-blue-600 px-6 py-3 text-white font-semibold text-center border border-blue-600 hover:bg-blue-300 hover:border-blue-700 hover:text-slate-700 transition"
               >
                 Get Started
               </Link>

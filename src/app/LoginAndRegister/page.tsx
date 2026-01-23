@@ -17,9 +17,19 @@ export default function LoginAndRegister() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
   const router = useRouter();
 
-  // Clear fields & errors when switching mode
+  /* Screen size detection */
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  /* Reset form on mode change */
   useEffect(() => {
     setEmail("");
     setPassword("");
@@ -55,21 +65,32 @@ export default function LoginAndRegister() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-sky-300 flex items-center justify-center px-6">
+    <div className="min-h-screen w-full bg-sky-300 flex items-center justify-center px-4 sm:px-6 py-32">
       <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden">
-        <div className="relative grid grid-cols-2 min-h-130 text-black">
+        <div className="relative grid grid-cols-1 md:grid-cols-2 min-h-144 text-black">
 
           {/* IMAGE PANEL */}
           <AnimatePresence mode="wait">
             <motion.div
               key={mode + "-image"}
-              initial={{ x: mode === "login" ? -200 : 200, opacity: 0 }}
+              initial={
+                isDesktop
+                  ? { x: mode === "login" ? -200 : 200, opacity: 0 }
+                  : { opacity: 0 }
+              }
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: mode === "login" ? 200 : -200, opacity: 0 }}
+              exit={
+                isDesktop
+                  ? { x: mode === "login" ? 200 : -200, opacity: 0 }
+                  : { opacity: 0 }
+              }
               transition={{ duration: 0.6, ease: "easeInOut" }}
-              className={`absolute top-0 h-full w-1/2 ${
-                mode === "login" ? "left-0" : "right-0"
-              }`}
+              className={`
+                relative md:absolute
+                w-full md:w-1/2
+                h-48 sm:h-56 md:h-full
+                ${mode === "login" ? "md:left-0" : "md:right-0"}
+              `}
             >
               <img
                 src={
@@ -80,11 +101,10 @@ export default function LoginAndRegister() {
                 alt="Auth Visual"
                 className="h-full w-full object-cover"
               />
+
               <div className="absolute inset-0 bg-black/5 flex items-center justify-center">
-                <h2 className="text-white text-3xl font-bold text-center px-10">
-                  {mode === "login"
-                    ? ""
-                    : ""}
+                <h2 className="text-white text-xl sm:text-2xl font-bold text-center px-6">
+                  
                 </h2>
               </div>
             </motion.div>
@@ -94,13 +114,29 @@ export default function LoginAndRegister() {
           <AnimatePresence mode="wait">
             <motion.div
               key={mode + "-form"}
-              initial={{ x: mode === "login" ? 200 : -200, opacity: 0 }}
+              initial={
+                isDesktop
+                  ? { x: mode === "login" ? 200 : -200, opacity: 0 }
+                  : { opacity: 0 }
+              }
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: mode === "login" ? -200 : 200, opacity: 0 }}
+              exit={
+                isDesktop
+                  ? { x: mode === "login" ? -200 : 200, opacity: 0 }
+                  : { opacity: 0 }
+              }
               transition={{ duration: 0.6, ease: "easeInOut" }}
-              className={`absolute top-0 h-full w-1/2 bg-white flex items-center justify-center px-12 ${
-                mode === "login" ? "right-0" : "left-0"
-              }`}
+              className={`
+                relative md:absolute
+                w-full md:w-1/2
+                h-full
+                bg-white
+                flex items-center justify-center
+                px-6 sm:px-10 md:px-12
+                pt-8 md:pt-0
+                pb-10 md:pb-0
+                ${mode === "login" ? "md:right-0" : "md:left-0"}
+              `}
             >
               <div className="w-full max-w-sm">
                 <h3 className="text-3xl font-bold mb-6">
@@ -131,7 +167,9 @@ export default function LoginAndRegister() {
                       type="password"
                       placeholder="Confirm Password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) =>
+                        setConfirmPassword(e.target.value)
+                      }
                       className="w-full border rounded-lg px-4 py-3"
                       required
                     />
@@ -205,7 +243,7 @@ export default function LoginAndRegister() {
                 Registration Successful 🎉
               </h2>
               <p className="text-gray-600 mb-6">
-                Your account has been created successfully.  
+                Your account has been created successfully.
                 You can now log in and start planning your Davao trip.
               </p>
 

@@ -60,12 +60,12 @@ export default function Home() {
         {/* Welcome Section */}
         <div className="text-center mb-16 animate-fade-in">
           <div className="inline-block mb-4">
-            <div className="bg-linear-to-r from-sky-500 to-blue-600 text-white px-6 py-2 rounded-full text-sm font-medium shadow-lg">
+            <div className="bg-linear-to-r p-10 from-sky-500 to-blue-600 text-white px-6 py-2 rounded-full text-sm font-medium shadow-lg">
               Hello there, Explorer! 👋
             </div>
           </div>
 
-          <h2 className="text-5xl font-bold mb-4 bg-linear-to-r from-sky-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h2 className="text-5xl pb-5 font-bold mb-4 bg-linear-to-r from-sky-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Explore Davao Region
           </h2>
 
