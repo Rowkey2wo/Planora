@@ -1,9 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { Trash2, Pencil, FileText, MapPin, Clock, Download } from "lucide-react";
+import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { Province, Category, getSpotsByCategory } from "@/app/data/davaoData";
+import { Province, Category, getSpotsByCategory, Destination, Hotel } from "@/app/data/davaoData";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { getAuth } from "firebase/auth";
@@ -126,7 +126,14 @@ export default function ItineraryDisplay({
     day: number;
     activityId: string | null;
   }>({ open: false, day: 0, activityId: null });
+  const [imageModal, setImageModal] = useState<{
+    open: boolean;
+    name: string;
+    image: string;
+    type: "spot" | "hotel";
+  }>({ open: false, name: "", image: "", type: "spot" });
   const [selectedValue, setSelectedValue] = useState("");
+  const [previewImage, setPreviewImage] = useState<string>("");
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -138,6 +145,32 @@ export default function ItineraryDisplay({
     () => setItinerary(buildItinerary(province, preferences, days)),
     [province, preferences, days]
   );
+
+  // Helper to find spot or hotel image
+const findPlaceImage = (
+  placeName: string
+): { image: string; type: "spot" | "hotel" } | null => {
+  const spot = province.spots.find((s) => s.name === placeName);
+  if (spot) return { image: spot.image, type: "spot" };
+
+  const hotel = province.hotels.find((h) => h.name === placeName);
+  if (hotel) return { image: hotel.image, type: "hotel" };
+
+  return null;
+};
+
+
+  const openImageModal = (placeName: string) => {
+    const place = findPlaceImage(placeName);
+    if (place) {
+      setImageModal({
+        open: true,
+        name: placeName,
+        image: place.image,
+        type: place.type,
+      });
+    }
+  };
 
   const saveToFirestore = async () => {
     if (!user) {
@@ -153,7 +186,6 @@ export default function ItineraryDisplay({
     setIsSaving(true);
 
     try {
-      // Create a unique document ID using timestamp
       const timestamp = new Date().getTime();
       const itineraryId = `${user.uid}_${timestamp}`;
       
@@ -186,6 +218,22 @@ export default function ItineraryDisplay({
   const openEditModal = (day: number, activityId: string, currentName: string) => {
     setEditModal({ open: true, day, activityId });
     setSelectedValue(currentName);
+  
+    const place = findPlaceImage(currentName);
+    if (place) {
+      setPreviewImage(`/davao/${place.image}`);
+    }
+  };
+
+  const handleSelectionChange = (value: string) => {
+    setSelectedValue(value);
+  
+    const place = findPlaceImage(value);
+    if (place) {
+      setPreviewImage(`/davao/${place.image}`);
+    } else {
+      setPreviewImage("");
+    }
   };
 
   const saveEdit = () => {
@@ -203,6 +251,7 @@ export default function ItineraryDisplay({
       )
     );
     setEditModal({ open: false, day: 0, activityId: null });
+    setPreviewImage("");
   };
 
   const openDeleteModal = (day: number, activityId: string | null) =>
@@ -390,7 +439,6 @@ export default function ItineraryDisplay({
           </button>
         </motion.div>
 
-        {/* Rest of the component remains the same... */}
         {/* Itinerary Cards */}
         <div className="space-y-8">
           {itinerary.map((dayPlan, dayIndex) => (
@@ -448,6 +496,13 @@ export default function ItineraryDisplay({
                           </div>
                           <div className="flex gap-2 ml-4">
                             <button
+                              onClick={() => openImageModal(activity.name)}
+                              className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+                              title="View Image"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
                               onClick={() =>
                                 openEditModal(dayPlan.day, activity.id, activity.name)
                               }
@@ -483,7 +538,69 @@ export default function ItineraryDisplay({
         )}
       </div>
 
-      {/* Modals remain the same... */}
+      {/* Image Modal */}
+      <AnimatePresence>
+        {imageModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4"
+            onClick={() => setImageModal({ open: false, name: "", image: "", type: "spot" })}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, rotateY: -20 }}
+              animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+              exit={{ scale: 0.8, opacity: 0, rotateY: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative bg-white rounded-3xl overflow-hidden shadow-2xl max-w-3xl w-full"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setImageModal({ open: false, name: "", image: "", type: "spot" })}
+                className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm rounded-full p-2 hover:bg-white transition-all shadow-lg"
+              >
+                <X size={24} className="text-slate-700" />
+              </button>
+
+              {/* Image */}
+              <div className="relative">
+              <img
+  src={`/davao/${imageModal.image}`}
+  alt={imageModal.name}
+  className="w-full h-96 object-cover"
+  onError={(e) => {
+    e.currentTarget.src = "/davao/placeholder.jpg";
+  }}
+/>
+
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
+                
+                {/* Type Badge */}
+                <div className="absolute top-4 left-4">
+                  <span className={`px-4 py-2 rounded-full text-sm font-semibold backdrop-blur-md ${
+                    imageModal.type === "spot" 
+                      ? "bg-sky-500/90 text-white" 
+                      : "bg-purple-500/90 text-white"
+                  }`}>
+                    {imageModal.type === "spot" ? "Tourist Spot" : "Hotel"}
+                  </span>
+                </div>
+
+                {/* Name Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <h3 className="text-white text-3xl font-bold drop-shadow-lg">
+                    {imageModal.name}
+                  </h3>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Modal with Image Preview */}
       <AnimatePresence>
         {editModal.open && (
           <motion.div
@@ -491,16 +608,41 @@ export default function ItineraryDisplay({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setEditModal({ open: false, day: 0, activityId: null })}
+            onClick={() => {
+              setEditModal({ open: false, day: 0, activityId: null });
+              setPreviewImage("");
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl"
+              className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <h3 className="text-2xl font-bold mb-6 text-slate-800">Select New Place</h3>
+              
+              {/* Image Preview */}
+              {previewImage && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mb-6 rounded-2xl overflow-hidden shadow-lg"
+                >
+                  <img
+  src={previewImage}
+  alt="Preview"
+  className="w-full h-64 object-cover"
+  onError={(e) => {
+    e.currentTarget.src = "/davao/placeholder.jpg";
+  }}
+/>
+                  <div className="bg-linear-to-r from-sky-50 to-blue-50 p-4">
+                    <p className="text-center font-semibold text-slate-700">{selectedValue}</p>
+                  </div>
+                </motion.div>
+              )}
+
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-sky-700 mb-2">
@@ -509,7 +651,7 @@ export default function ItineraryDisplay({
                   <select
                     className="w-full border-2 border-sky-200 rounded-xl p-3 focus:outline-none focus:border-sky-500 transition-colors"
                     value={selectedValue}
-                    onChange={(e) => setSelectedValue(e.target.value)}
+                    onChange={(e) => handleSelectionChange(e.target.value)}
                   >
                     <option value="">-- Select a spot --</option>
                     {province.spots.map((s) => (
@@ -526,7 +668,7 @@ export default function ItineraryDisplay({
                   <select
                     className="w-full border-2 border-purple-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 transition-colors"
                     value={selectedValue}
-                    onChange={(e) => setSelectedValue(e.target.value)}
+                    onChange={(e) => handleSelectionChange(e.target.value)}
                   >
                     <option value="">-- Select a hotel --</option>
                     {province.hotels.map((h) => (
@@ -539,7 +681,10 @@ export default function ItineraryDisplay({
               </div>
               <div className="flex gap-3 mt-8">
                 <button
-                  onClick={() => setEditModal({ open: false, day: 0, activityId: null })}
+                  onClick={() => {
+                    setEditModal({ open: false, day: 0, activityId: null });
+                    setPreviewImage("");
+                  }}
                   className="flex-1 px-4 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 font-semibold transition-colors"
                 >
                   Cancel
@@ -556,6 +701,7 @@ export default function ItineraryDisplay({
         )}
       </AnimatePresence>
 
+      {/* Delete Modal */}
       <AnimatePresence>
         {deleteModal.open && (
           <motion.div

@@ -73,7 +73,7 @@ export const provinces: Province[] = [
       { name: "Discovery Samal", category: "Beach", lat: 7.0678, lng: 125.7547, image: "discovery-samal.jpg" },
       { name: "Costa Azalea Crusoe Cabins", category: "Beach", lat: 7.06, lng: 125.75, image: "costa-azalea-crusoe-cabins.jpg" },
       { name: "Villa Amparo Garden Beach Resort", category: "Beach", lat: 7.055, lng: 125.758, image: "villa-amparo-garden-beach-resort.jpg" },
-      { name: "Hof Gorei Beach Resort", category: "Beach", lat: 7.05, lng: 125.76, image: "hof-gorei-beach-resort.jpg" },
+      { name: "Hof Gorei Beach Resort", category: "Beach", lat: 7.05, lng: 125.76, image: "hof-gorei-beach-resort.jpeg" },
       { name: "Tagum City Night Market", category: "City Tours", lat: 7.446, lng: 125.801, image: "tagum-city-night-market.jpg" },
       { name: "Monfort Bat Sanctuary", category: "Rural", lat: 7.466, lng: 125.814, image: "monfort-bat-sanctuary.jpg" },
       { name: "Hagimit Falls", category: "Rural", lat: 7.048, lng: 125.753, image: "hagimit-falls.jpg" },
