@@ -53,7 +53,16 @@ export default function Home() {
   return (
     <main className="min-h-screen w-full overflow-x-hidden text-black">
       {/* HERO */}
-      <section className="bg-linear-to-b from-sky-500 via-blue-400 to-white px-4 sm:px-8 lg:px-16 py-32">
+      <section className="relative min-h-screen px-4 sm:px-8 lg:px-16 py-32">
+      <div className="absolute inset-0 -z-10">
+        <img
+          src="/maxresdefault.jpg"
+          alt="Hero Background"
+          className="h-full w-full object-cover"
+        />
+        </div>
+        <div className="absolute inset-0 -z-10 bg-blue-950/50 mix-blend-multiply" />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           {/* Text */}
           <motion.div
@@ -64,7 +73,7 @@ export default function Home() {
             <img
               src="/PlanoraTextOnly.png"
               alt="Planora"
-              className="w-48 sm:w-90 mb-6"
+              className="w-48 sm:w-90 mb-6 drop-shadow-[0_0_7px_#FFF,0_0_10px_#FFF,0_0_30px_#FFF]"
             />
 
             <h1 className="text-sm sm:text-2xl tracking-widest text-white/80 mb-6">
@@ -101,7 +110,7 @@ export default function Home() {
             <img
               src="/NoPlanoraTextBG.png"
               alt="Planora Graphic"
-              className="w-64 sm:w-80 lg:w-full max-w-md"
+              className="w-64 sm:w-80 lg:w-full max-w-md drop-shadow-[0_0_7px_#FFF]"
             />
           </motion.div>
         </div>
