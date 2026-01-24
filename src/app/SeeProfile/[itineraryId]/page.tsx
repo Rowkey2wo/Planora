@@ -407,7 +407,7 @@ export default function SavedItineraryView() {
     <div className="min-h-screen bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Toast Notifications */}
-        <div className="fixed top-20 right-4 z-[100] space-y-3">
+        <div className="fixed top-20 right-4 z-100 space-y-3">
           <AnimatePresence>
             {toasts.map((toast) => (
               <motion.div
@@ -646,7 +646,7 @@ export default function SavedItineraryView() {
                 <div className="p-6">
                   <div className="relative">
                     {/* Timeline Line */}
-                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-300 to-teal-300" />
+                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-linear-to-b from-emerald-300 to-teal-300" />
 
                     <div className="space-y-4">
                       <AnimatePresence>

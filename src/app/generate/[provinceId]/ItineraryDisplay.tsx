@@ -428,7 +428,7 @@ export default function ItineraryDisplay({
     <div className="min-h-screen bg-linear-to-br from-sky-50 via-blue-50 to-indigo-50 py-10 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Toast Notifications */}
-        <div className="fixed top-20 right-4 z-[100] space-y-3">
+        <div className="fixed top-20 right-4 z-100 space-y-3">
           <AnimatePresence>
             {toasts.map((toast) => (
               <motion.div
