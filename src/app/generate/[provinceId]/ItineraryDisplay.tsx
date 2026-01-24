@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye } from "lucide-react";
+import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye, CheckCircle2, AlertCircle } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { Province, Category, getSpotsByCategory, Destination, Hotel } from "@/app/data/davaoData";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -12,6 +12,12 @@ import jsPDF from "jspdf";
 /* ---------------- TYPES ---------------- */
 type Activity = { id: string; name: string; time: string };
 type DayPlan = { day: number; activities: Activity[] };
+
+type Toast = {
+  id: number;
+  type: "success" | "error";
+  message: string;
+};
 
 type Props = {
   province: Province;
@@ -154,9 +160,19 @@ export default function ItineraryDisplay({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   const auth = getAuth();
   const user = auth.currentUser;
+
+  // Toast notification system
+  const showToast = (type: "success" | "error", message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 4000);
+  };
 
   useEffect(
     () => setItinerary(buildItinerary(province, preferences, days)),
@@ -190,12 +206,12 @@ export default function ItineraryDisplay({
 
   const saveToFirestore = async () => {
     if (!user) {
-      alert("Please sign in to save your itinerary!");
+      showToast("error", "Please sign in to save your itinerary!");
       return;
     }
 
     if (isSaved) {
-      alert("This itinerary has already been saved!");
+      showToast("error", "This itinerary has already been saved!");
       return;
     }
 
@@ -222,10 +238,10 @@ export default function ItineraryDisplay({
       });
 
       setIsSaved(true);
-      alert("✅ Itinerary saved successfully!");
+      showToast("success", "Itinerary saved successfully!");
     } catch (error) {
       console.error("Error saving itinerary:", error);
-      alert("❌ Failed to save itinerary. Please try again.");
+      showToast("error", "Failed to save itinerary. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -268,6 +284,7 @@ export default function ItineraryDisplay({
     );
     setEditModal({ open: false, day: 0, activityId: null });
     setPreviewImage("");
+    showToast("success", "Activity updated successfully!");
   };
 
   const openDeleteModal = (day: number, activityId: string | null) =>
@@ -285,8 +302,10 @@ export default function ItineraryDisplay({
             : d
         )
       );
+      showToast("success", "Activity deleted successfully!");
     } else {
       setItinerary((prev) => prev.filter((d) => d.day !== deleteModal.day));
+      showToast("success", "Day deleted successfully!");
     }
     setDeleteModal({ open: false, day: 0, activityId: null });
   };
@@ -393,10 +412,10 @@ export default function ItineraryDisplay({
       }
 
       pdf.save(`${province.name}_Itinerary_${new Date().toISOString().split("T")[0]}.pdf`);
-      alert("✅ PDF downloaded successfully!");
+      showToast("success", "PDF downloaded successfully!");
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please try again.");
+      showToast("error", "Failed to generate PDF. Please try again.");
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -408,6 +427,40 @@ export default function ItineraryDisplay({
   return (
     <div className="min-h-screen bg-linear-to-br from-sky-50 via-blue-50 to-indigo-50 py-10 px-4">
       <div className="max-w-5xl mx-auto">
+        {/* Toast Notifications */}
+        <div className="fixed top-20 right-4 z-[100] space-y-3">
+          <AnimatePresence>
+            {toasts.map((toast) => (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, x: 100, scale: 0.8 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 100, scale: 0.8 }}
+                className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border-2 min-w-[320px] ${
+                  toast.type === "success"
+                    ? "bg-emerald-500/95 border-emerald-400 text-white"
+                    : "bg-red-500/95 border-red-400 text-white"
+                }`}
+              >
+                {toast.type === "success" ? (
+                  <CheckCircle2 className="w-6 h-6 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-6 h-6 shrink-0" />
+                )}
+                <p className="font-semibold text-sm flex-1">{toast.message}</p>
+                <button
+                  onClick={() =>
+                    setToasts((prev) => prev.filter((t) => t.id !== toast.id))
+                  }
+                  className="hover:bg-white/20 p-1 rounded-full transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
         {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

@@ -123,7 +123,7 @@ export default function SeeProfile() {
   };
 
   const viewItinerary = (itineraryId: string) => {
-    router.push(`/itinerary/${itineraryId}`);
+    router.push(`/SeeProfile/${itineraryId}`);
   };
 
   const formatDate = (timestamp: any) => {
@@ -387,12 +387,11 @@ export default function SeeProfile() {
                       {/* Action Buttons */}
                       <div className="flex gap-2">
                         <button
-                            disabled
                           onClick={() => viewItinerary(itinerary.id)}
-                          className="flex-1 px-4 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                          className="flex-1 px-4 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:scale-105"
                         >
                           <Eye className="w-4 h-4" />
-                          View (coming soon..)
+                          View
                         </button>
                         <button
                           onClick={() => openDeleteModal(itinerary.id)}
