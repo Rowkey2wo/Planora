@@ -1,8 +1,9 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Target, Users, MapPin, Sparkles, GraduationCap, Heart } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Target, Users, MapPin, Sparkles, GraduationCap, Heart, ChevronDown } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 const teamMembers = [
   "Bellezas, Sophia Christelle",
@@ -21,7 +22,7 @@ const teamMembers = [
   "Jorge, Jose T.",
   "Kando, Shiyota M.",
   "Libuit, Mishane A.",
-  "Lituanas, Anthoniza Cassandra C.",
+  "Lituañas, Anthoniza Cassandra C.",
   "Lozaldo, Thalia Rose A.",
   "Magallon, Jianne Leigh T.",
   "Malaluan, Margaret C.",
@@ -34,6 +35,13 @@ const teamMembers = [
   "Senajon, Jhon Benedict B.",
   "Siatan, Aadi Marzilo B.",
 ];
+
+// Extract last name for image filename
+function getLastName(fullName: string): string {
+  // Format is "LastName, FirstName MiddleInitial"
+  const lastName = fullName.split(",")[0].trim().toLowerCase();
+  return lastName;
+}
 
 const features = [
   {
@@ -57,7 +65,11 @@ const features = [
 ];
 
 export default function About() {
-  const [hoveredMember, setHoveredMember] = useState<number | null>(null);
+  const [expandedMember, setExpandedMember] = useState<number | null>(null);
+
+  const toggleMember = (index: number) => {
+    setExpandedMember(expandedMember === index ? null : index);
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -86,7 +98,7 @@ export default function About() {
               Planora
             </span>
           </h1>
-          
+
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -218,40 +230,98 @@ export default function About() {
 
           {/* Team Grid */}
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {teamMembers.map((member, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.02 }}
-                onHoverStart={() => setHoveredMember(index)}
-                onHoverEnd={() => setHoveredMember(null)}
-                className="relative group"
-              >
-                <div className={`
-                  bg-white rounded-2xl p-4 shadow-md hover:shadow-xl transition-all duration-300
-                  border-2 ${hoveredMember === index ? 'border-blue-500 scale-105' : 'border-slate-100'}
-                `}>
-                  <div className="flex items-start gap-3">
-                    <div className={`
-                      w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-white
-                      bg-linear-to-br ${index % 4 === 0 ? 'from-blue-500 to-cyan-500' : 
-                                        index % 4 === 1 ? 'from-purple-500 to-pink-500' : 
-                                        index % 4 === 2 ? 'from-orange-500 to-red-500' : 
-                                        'from-green-500 to-teal-500'}
-                    `}>
-                      {index + 1}
+            {teamMembers.map((member, index) => {
+              const lastName = getLastName(member);
+              const isExpanded = expandedMember === index;
+
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.02 }}
+                  className="relative group"
+                >
+                  <div
+                    className={`
+                      bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300
+                      border-2 ${isExpanded ? "border-blue-500" : "border-slate-100"}
+                      overflow-hidden cursor-pointer
+                    `}
+                    onClick={() => toggleMember(index)}
+                  >
+                    {/* Member Header */}
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div
+                          className={`
+                            w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-white
+                            bg-linear-to-br ${
+                              index % 4 === 0
+                                ? "from-blue-500 to-cyan-500"
+                                : index % 4 === 1
+                                ? "from-purple-500 to-pink-500"
+                                : index % 4 === 2
+                                ? "from-orange-500 to-red-500"
+                                : "from-green-500 to-teal-500"
+                            }
+                          `}
+                        >
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-800 text-sm leading-tight">
+                            {member}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Chevron Icon */}
+                      <motion.div
+                        animate={{ rotate: isExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="ml-2 shrink-0 text-slate-400"
+                      >
+                        <ChevronDown size={18} />
+                      </motion.div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800 text-sm leading-tight">
-                        {member}
-                      </p>
-                    </div>
+
+                    {/* Dropdown Image */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          key="dropdown"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.35, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4">
+                            <motion.div
+                              initial={{ scale: 0.92, y: -8 }}
+                              animate={{ scale: 1, y: 0 }}
+                              exit={{ scale: 0.92, y: -8 }}
+                              transition={{ duration: 0.3, ease: "easeOut" }}
+                              className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-100 shadow-inner"
+                            >
+                              <Image
+                                src={`/IndividualPics/${lastName}.JPG`}
+                                alt={member}
+                                fill
+                                className="object-cover object-top"
+                                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 25vw"
+                              />
+                            </motion.div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Team Stats */}

@@ -60,7 +60,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     await signOut(auth);
     setMobileOpen(false);
-    router.replace("/LoginAndRegister");
+    router.replace("/");
   };
 
   return (

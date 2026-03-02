@@ -439,7 +439,7 @@ export default function SeeProfile() {
                 <button
                   onClick={() => setDeleteModal({ open: false, itineraryId: null })}
                   disabled={deleting}
-                  className="flex-1 px-6 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 font-semibold transition-colors disabled:opacity-50"
+                  className="flex-1 px-6 py-3 rounded-xl bg-slate-200 text-slate-800 hover:bg-slate-300 font-semibold transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>

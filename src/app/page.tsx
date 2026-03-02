@@ -1,10 +1,11 @@
 "use client";
 
-import { Clock, Heart, MapPin } from "lucide-react";
+import { Clock, Heart, MapPin, ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { provinces, Province } from "@/app/data/davaoData";
 
 const davaoDelSur: Province | undefined = provinces.find(
@@ -47,19 +48,31 @@ if (davaoDelSur) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [showAll, setShowAll] = useState(false);
   const visibleCards = showAll ? topExperiences : topExperiences.slice(0, 4);
+
+  const handleCardClick = () => {
+    router.push("/LoginAndRegister");
+  };
+
+  const scrollToContent = () => {
+    window.scrollTo({
+      top: window.innerHeight,
+      behavior: "smooth",
+    });
+  };
 
   return (
     <main className="min-h-screen w-full overflow-x-hidden text-black">
       {/* HERO */}
       <section className="relative min-h-screen px-4 sm:px-8 lg:px-16 py-32">
-      <div className="absolute inset-0 -z-10">
-        <img
-          src="/maxresdefault.jpg"
-          alt="Hero Background"
-          className="h-full w-full object-cover"
-        />
+        <div className="absolute inset-0 -z-10">
+          <img
+            src="/maxresdefault.jpg"
+            alt="Hero Background"
+            className="h-full w-full object-cover"
+          />
         </div>
         <div className="absolute inset-0 -z-10 bg-blue-950/50 mix-blend-multiply" />
 
@@ -114,6 +127,44 @@ export default function Home() {
             />
           </motion.div>
         </div>
+
+        {/* Scroll Down Indicator */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1 }}
+          className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center cursor-pointer"
+          onClick={scrollToContent}
+        >
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            className="flex flex-col items-center"
+          >
+            <p className="text-white/90 text-sm font-semibold mb-2 tracking-wide">
+              Scroll to explore
+            </p>
+            <motion.div
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              className="w-6 h-10 border-2 border-white/80 rounded-full flex items-start justify-center p-2"
+            >
+              <motion.div
+                animate={{ y: [0, 12, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                className="w-1.5 h-1.5 bg-white rounded-full"
+              />
+            </motion.div>
+          </motion.div>
+          
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+            className="mt-2"
+          >
+            <ChevronDown className="w-6 h-6 text-white/80" />
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* VIDEO SECTION */}
@@ -171,7 +222,8 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.5 }}
               whileHover={{ y: -6 }}
-              className="rounded-xl bg-white shadow hover:shadow-xl transition overflow-hidden"
+              onClick={handleCardClick}
+              className="rounded-xl bg-white shadow hover:shadow-xl transition overflow-hidden cursor-pointer"
             >
               <div className="relative h-48">
                 <Image
@@ -180,7 +232,13 @@ export default function Home() {
                   fill
                   className="object-cover"
                 />
-                <button className="absolute top-3 right-3 bg-white p-2 rounded-full shadow">
+                <button 
+                  className="absolute top-3 right-3 bg-white p-2 rounded-full shadow hover:bg-red-50 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick();
+                  }}
+                >
                   <Heart className="w-4 h-4" />
                 </button>
               </div>

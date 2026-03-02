@@ -1,16 +1,16 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
-import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye, CheckCircle2, AlertCircle } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
-import { Province, Category, getSpotsByCategory, Destination, Hotel } from "@/app/data/davaoData";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye, CheckCircle2, AlertCircle, GripVertical } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Province, Category, getSpotsByCategory } from "@/app/data/davaoData";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { getAuth } from "firebase/auth";
 import jsPDF from "jspdf";
 
 /* ---------------- TYPES ---------------- */
-type Activity = { id: string; name: string; time: string };
+type Activity = { id: string; name: string; time: string; startTime: Date; endTime: Date };
 type DayPlan = { day: number; activities: Activity[] };
 
 type Toast = {
@@ -35,18 +35,29 @@ const formatTime = (date: Date) =>
   date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
 const generateTimeSlots = (count: number) => {
-  const slots: string[] = [];
+  const slots: { time: string; startTime: Date; endTime: Date }[] = [];
   let current = new Date();
-  current.setHours(8, 0, 0);
+  current.setHours(8, 0, 0, 0);
+  
   for (let i = 0; i < count; i++) {
     const start = new Date(current);
     const end = new Date(current);
     end.setMinutes(end.getMinutes() + 90);
-    slots.push(`${formatTime(start)} - ${formatTime(end)}`);
+    
+    slots.push({
+      time: `${formatTime(start)} - ${formatTime(end)}`,
+      startTime: new Date(start),
+      endTime: new Date(end)
+    });
+    
     current = new Date(end);
     current.setMinutes(current.getMinutes() + 15);
   }
   return slots;
+};
+
+const sortActivitiesByTime = (activities: Activity[]): Activity[] => {
+  return [...activities].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 };
 
 /* ---------------- DISTANCE HELPERS ---------------- */
@@ -70,28 +81,20 @@ const buildItinerary = (
 ): DayPlan[] => {
   const itinerary: DayPlan[] = [];
   
-  // Get all spots from selected categories
   let allSpots = preferences.flatMap((cat) =>
     getSpotsByCategory(province, cat)
   );
 
-  // Calculate spots per day
-  const totalSpots = allSpots.length;
-  const spotsPerDay = Math.ceil(totalSpots / days);
-
-  // Distribute spots across days
   let currentLat = province.coordinates.lat;
   let currentLng = province.coordinates.lng;
 
   for (let day = 1; day <= days; day++) {
     const daySpots: typeof allSpots = [];
     
-    // Calculate how many spots for this day
     const remainingDays = days - day + 1;
     const remainingSpots = allSpots.length;
     const spotsForThisDay = Math.ceil(remainingSpots / remainingDays);
 
-    // Select spots for this day using nearest neighbor algorithm
     while (daySpots.length < spotsForThisDay && allSpots.length > 0) {
       let nearestIndex = 0;
       let nearestDistance = Infinity;
@@ -112,7 +115,6 @@ const buildItinerary = (
       currentLng = (selected as any).lng ?? currentLng;
     }
 
-    // Generate time slots for activities
     const times = generateTimeSlots(daySpots.length);
     
     itinerary.push({
@@ -120,7 +122,9 @@ const buildItinerary = (
       activities: daySpots.map((place, i) => ({
         id: `${day}-${i}`,
         name: place.name,
-        time: times[i],
+        time: times[i].time,
+        startTime: times[i].startTime,
+        endTime: times[i].endTime
       })),
     });
   }
@@ -143,7 +147,8 @@ export default function ItineraryDisplay({
     open: boolean;
     day: number;
     activityId: string | null;
-  }>({ open: false, day: 0, activityId: null });
+    isTimeEdit: boolean;
+  }>({ open: false, day: 0, activityId: null, isTimeEdit: false });
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     day: number;
@@ -161,11 +166,15 @@ export default function ItineraryDisplay({
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  
+  // Time editing states
+  const [selectedStartTime, setSelectedStartTime] = useState("");
+  const [selectedEndTime, setSelectedEndTime] = useState("");
+  const [currentActivity, setCurrentActivity] = useState<Activity | null>(null);
 
   const auth = getAuth();
   const user = auth.currentUser;
 
-  // Toast notification system
   const showToast = (type: "success" | "error", message: string) => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, type, message }]);
@@ -179,7 +188,6 @@ export default function ItineraryDisplay({
     [province, preferences, days]
   );
 
-  // Helper to find spot or hotel image
   const findPlaceImage = (
     placeName: string
   ): { image: string; type: "spot" | "hotel" } | null => {
@@ -247,13 +255,23 @@ export default function ItineraryDisplay({
     }
   };
 
-  const openEditModal = (day: number, activityId: string, currentName: string) => {
-    setEditModal({ open: true, day, activityId });
+  const openEditModal = (day: number, activityId: string, currentName: string, isTimeEdit: boolean = false) => {
+    setEditModal({ open: true, day, activityId, isTimeEdit });
     setSelectedValue(currentName);
   
-    const place = findPlaceImage(currentName);
-    if (place) {
-      setPreviewImage(`/davao/${place.image}`);
+    if (isTimeEdit) {
+      const dayPlan = itinerary.find(d => d.day === day);
+      const activity = dayPlan?.activities.find(a => a.id === activityId);
+      if (activity) {
+        setCurrentActivity(activity);
+        setSelectedStartTime(formatTime(activity.startTime));
+        setSelectedEndTime(formatTime(activity.endTime));
+      }
+    } else {
+      const place = findPlaceImage(currentName);
+      if (place) {
+        setPreviewImage(`/davao/${place.image}`);
+      }
     }
   };
 
@@ -268,23 +286,131 @@ export default function ItineraryDisplay({
     }
   };
 
+  const checkTimeConflict = (day: number, activityId: string, newStart: Date, newEnd: Date): boolean => {
+    const dayPlan = itinerary.find(d => d.day === day);
+    if (!dayPlan) return false;
+
+    return dayPlan.activities.some(activity => {
+      if (activity.id === activityId) return false;
+      
+      return (
+        (newStart >= activity.startTime && newStart < activity.endTime) ||
+        (newEnd > activity.startTime && newEnd <= activity.endTime) ||
+        (newStart <= activity.startTime && newEnd >= activity.endTime)
+      );
+    });
+  };
+
+  const getAvailableTimeSlots = (day: number, currentActivityId: string) => {
+    const dayPlan = itinerary.find(d => d.day === day);
+    if (!dayPlan) return [];
+
+    const allSlots: { time: string; available: boolean; activityName?: string }[] = [];
+    const startHour = 6;
+    const endHour = 22;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const slotStart = new Date();
+        slotStart.setHours(hour, minute, 0, 0);
+        const timeStr = formatTime(slotStart);
+        
+        const conflict = dayPlan.activities.find(activity => {
+          if (activity.id === currentActivityId) return false;
+          return slotStart >= activity.startTime && slotStart < activity.endTime;
+        });
+        
+        allSlots.push({
+          time: timeStr,
+          available: !conflict,
+          activityName: conflict?.name
+        });
+      }
+    }
+    
+    return allSlots;
+  };
+
   const saveEdit = () => {
     if (!editModal.activityId) return;
-    setItinerary((prev) =>
-      prev.map((d) =>
-        d.day === editModal.day
-          ? {
-              ...d,
-              activities: d.activities.map((a) =>
-                a.id === editModal.activityId ? { ...a, name: selectedValue } : a
-              ),
-            }
-          : d
-      )
-    );
-    setEditModal({ open: false, day: 0, activityId: null });
+
+    if (editModal.isTimeEdit) {
+      const startParts = selectedStartTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      const endParts = selectedEndTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      
+      if (!startParts || !endParts) {
+        showToast("error", "Invalid time format");
+        return;
+      }
+
+      const newStart = new Date();
+      const newEnd = new Date();
+      
+      let startHours = parseInt(startParts[1]);
+      const startMinutes = parseInt(startParts[2]);
+      const startPeriod = startParts[3].toUpperCase();
+      
+      let endHours = parseInt(endParts[1]);
+      const endMinutes = parseInt(endParts[2]);
+      const endPeriod = endParts[3].toUpperCase();
+      
+      if (startPeriod === "PM" && startHours !== 12) startHours += 12;
+      if (startPeriod === "AM" && startHours === 12) startHours = 0;
+      if (endPeriod === "PM" && endHours !== 12) endHours += 12;
+      if (endPeriod === "AM" && endHours === 12) endHours = 0;
+      
+      newStart.setHours(startHours, startMinutes, 0, 0);
+      newEnd.setHours(endHours, endMinutes, 0, 0);
+
+      if (newEnd <= newStart) {
+        showToast("error", "End time must be after start time");
+        return;
+      }
+
+      if (checkTimeConflict(editModal.day, editModal.activityId, newStart, newEnd)) {
+        showToast("error", "Time slot conflicts with another activity");
+        return;
+      }
+
+      setItinerary((prev) =>
+        prev.map((d) =>
+          d.day === editModal.day
+            ? {
+                ...d,
+                activities: sortActivitiesByTime(d.activities.map((a) =>
+                  a.id === editModal.activityId
+                    ? { 
+                        ...a, 
+                        time: `${selectedStartTime} - ${selectedEndTime}`,
+                        startTime: newStart,
+                        endTime: newEnd
+                      }
+                    : a
+                )),
+              }
+            : d
+        )
+      );
+      showToast("success", "Time updated successfully!");
+    } else {
+      setItinerary((prev) =>
+        prev.map((d) =>
+          d.day === editModal.day
+            ? {
+                ...d,
+                activities: d.activities.map((a) =>
+                  a.id === editModal.activityId ? { ...a, name: selectedValue } : a
+                ),
+              }
+            : d
+        )
+      );
+      showToast("success", "Activity updated successfully!");
+    }
+
+    setEditModal({ open: false, day: 0, activityId: null, isTimeEdit: false });
     setPreviewImage("");
-    showToast("success", "Activity updated successfully!");
+    setCurrentActivity(null);
   };
 
   const openDeleteModal = (day: number, activityId: string | null) =>
@@ -308,6 +434,28 @@ export default function ItineraryDisplay({
       showToast("success", "Day deleted successfully!");
     }
     setDeleteModal({ open: false, day: 0, activityId: null });
+  };
+
+  const handleReorder = (day: number, newOrder: Activity[]) => {
+    const times = generateTimeSlots(newOrder.length);
+    const reorderedWithTimes = newOrder.map((activity, index) => ({
+      ...activity,
+      time: times[index].time,
+      startTime: times[index].startTime,
+      endTime: times[index].endTime
+    }));
+
+    setItinerary((prev) =>
+      prev.map((d) =>
+        d.day === day
+          ? { ...d, activities: reorderedWithTimes }
+          : d
+      )
+    );
+  };
+
+  const handleReorderComplete = () => {
+    showToast("success", "Activities reordered!");
   };
 
   const generatePDF = () => {
@@ -362,7 +510,7 @@ export default function ItineraryDisplay({
       pdf.text(`Categories: ${preferences.join(", ")}`, margin + 5, yPosition + 21);
       yPosition += 35;
 
-      itinerary.forEach((dayPlan, dayIndex) => {
+      itinerary.forEach((dayPlan) => {
         checkNewPage(20);
         pdf.setFillColor(14, 165, 233);
         pdf.roundedRect(margin, yPosition, contentWidth, 12, 2, 2, "F");
@@ -372,7 +520,7 @@ export default function ItineraryDisplay({
         pdf.text(`Day ${dayPlan.day}`, margin + 5, yPosition + 8);
         yPosition += 17;
 
-        dayPlan.activities.forEach((activity, actIndex) => {
+        dayPlan.activities.forEach((activity) => {
           const activityHeight = 18;
           checkNewPage(activityHeight);
           const boxY = yPosition;
@@ -421,7 +569,6 @@ export default function ItineraryDisplay({
     }
   };
 
-  // Calculate total spots in itinerary
   const totalSpotsInItinerary = itinerary.reduce((sum, day) => sum + day.activities.length, 0);
 
   return (
@@ -474,6 +621,7 @@ export default function ItineraryDisplay({
             {days} Day{days > 1 ? "s" : ""} • {pax} Traveler{pax > 1 ? "s" : ""} •{" "}
             {totalSpotsInItinerary} Spots • {accommodation}
           </p>
+          <p className="text-sm text-sky-600 mt-2">💡 Drag activities to reorder them!</p>
         </motion.div>
 
         {/* Action Buttons */}
@@ -540,62 +688,135 @@ export default function ItineraryDisplay({
                   </button>
                 </div>
 
-                <div className="p-6 space-y-3">
-                  <AnimatePresence>
+                <div className="p-6">
+                  <Reorder.Group
+                    axis="y"
+                    values={dayPlan.activities}
+                    onReorder={(newOrder) => handleReorder(dayPlan.day, newOrder)}
+                    className="space-y-3"
+                    layoutScroll
+                    style={{ overflowY: 'visible' }}
+                  >
                     {dayPlan.activities.map((activity, actIndex) => (
-                      <motion.div
+                      <Reorder.Item
                         key={activity.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ delay: actIndex * 0.05 }}
-                        className="group relative bg-linear-to-r from-sky-50 to-blue-50 rounded-2xl p-5 border-2 border-sky-200 hover:border-sky-400 hover:shadow-lg transition-all duration-200"
+                        value={activity}
+                        id={activity.id}
+                        dragListener={true}
+                        dragElastic={0.05}
+                        dragTransition={{ 
+                          bounceStiffness: 600, 
+                          bounceDamping: 40,
+                          power: 0.2
+                        }}
+                        onDragEnd={handleReorderComplete}
+                        initial={false}
+                        whileDrag={{
+                          scale: 1.03,
+                          boxShadow: "0 20px 40px rgba(14, 165, 233, 0.25)",
+                          zIndex: 100,
+                          cursor: "grabbing",
+                        }}
+                        animate={{
+                          scale: 1,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        }}
+                        exit={{
+                          scale: 0.95,
+                          opacity: 0,
+                        }}
+                        transition={{
+                          layout: {
+                            type: "spring",
+                            stiffness: 600,
+                            damping: 45,
+                            mass: 1,
+                          },
+                          scale: {
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 30,
+                          }
+                        }}
+                        className="relative bg-linear-to-r from-sky-50 to-blue-50 rounded-2xl p-5 border-2 border-sky-200 hover:border-sky-300 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
+                        style={{
+                          originX: 0.5,
+                          originY: 0.5,
+                        }}
                       >
-                        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-linear-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                          {actIndex + 1}
-                        </div>
-                        <div className="flex justify-between items-start ml-6">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Clock size={16} className="text-sky-500" />
-                              <p className="text-sm font-semibold text-sky-600">
-                                {activity.time}
-                              </p>
+                        <div className="flex items-center gap-3">
+                          <GripVertical className="w-5 h-5 text-gray-400 shrink-0 cursor-grab active:cursor-grabbing" />
+                          
+                          <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-linear-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg pointer-events-none z-10">
+                            {actIndex + 1}
+                          </div>
+                          
+                          <div className="flex justify-between items-start flex-1 ml-6">
+                            <div className="flex-1 pointer-events-none select-none">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Clock size={16} className="text-sky-500" />
+                                <p className="text-sm font-semibold text-sky-600">
+                                  {activity.time}
+                                </p>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <MapPin size={18} className="text-blue-600 mt-1 shrink-0" />
+                                <p className="font-bold text-slate-800 text-lg leading-tight">
+                                  {activity.name}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex items-start gap-2">
-                              <MapPin size={18} className="text-blue-600 mt-1 shrink-0" />
-                              <p className="font-bold text-slate-800 text-lg leading-tight">
-                                {activity.name}
-                              </p>
+                            <div className="flex gap-2 ml-4 pointer-events-auto">
+                              <button
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openImageModal(activity.name);
+                                }}
+                                className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors touch-none"
+                                title="View Image"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(dayPlan.day, activity.id, activity.name, false);
+                                }}
+                                className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors touch-none"
+                                title="Edit Place"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditModal(dayPlan.day, activity.id, activity.name, true);
+                                }}
+                                className="p-2 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors touch-none"
+                                title="Edit Time"
+                              >
+                                <Clock size={16} />
+                              </button>
+                              <button
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDeleteModal(dayPlan.day, activity.id);
+                                }}
+                                className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors touch-none"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           </div>
-                          <div className="flex gap-2 ml-4">
-                            <button
-                              onClick={() => openImageModal(activity.name)}
-                              className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
-                              title="View Image"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button
-                              onClick={() =>
-                                openEditModal(dayPlan.day, activity.id, activity.name)
-                              }
-                              className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                            >
-                              <Pencil size={16} />
-                            </button>
-                            <button
-                              onClick={() => openDeleteModal(dayPlan.day, activity.id)}
-                              className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
                         </div>
-                      </motion.div>
+                      </Reorder.Item>
                     ))}
-                  </AnimatePresence>
+                  </Reorder.Group>
                 </div>
               </div>
             </motion.div>
@@ -671,7 +892,7 @@ export default function ItineraryDisplay({
         )}
       </AnimatePresence>
 
-      {/* Edit Modal with Image Preview */}
+      {/* Edit Modal */}
       <AnimatePresence>
         {editModal.open && (
           <motion.div
@@ -680,8 +901,9 @@ export default function ItineraryDisplay({
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => {
-              setEditModal({ open: false, day: 0, activityId: null });
+              setEditModal({ open: false, day: 0, activityId: null, isTimeEdit: false });
               setPreviewImage("");
+              setCurrentActivity(null);
             }}
           >
             <motion.div
@@ -691,69 +913,140 @@ export default function ItineraryDisplay({
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="text-2xl font-bold mb-6 text-slate-800">Select New Place</h3>
-              
-              {previewImage && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mb-6 rounded-2xl overflow-hidden shadow-lg"
-                >
-                  <img
-                    src={previewImage}
-                    alt="Preview"
-                    className="w-full h-64 object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = "/davao/placeholder.jpg";
-                    }}
-                  />
-                  <div className="bg-linear-to-r from-sky-50 to-blue-50 p-4">
-                    <p className="text-center font-semibold text-slate-700">{selectedValue}</p>
+              <h3 className="text-2xl font-bold mb-6 text-slate-800">
+                {editModal.isTimeEdit ? "Edit Time Slot" : "Select New Place"}
+              </h3>
+
+              {editModal.isTimeEdit ? (
+                <div className="space-y-6">
+                  <div className="bg-sky-50 border-2 border-sky-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-sky-700 mb-2">Current Activity:</p>
+                    <p className="font-bold text-slate-800">{currentActivity?.name}</p>
+                    <p className="text-sm text-sky-600 mt-1">Current: {currentActivity?.time}</p>
                   </div>
-                </motion.div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-green-700 mb-2">
+                        Start Time
+                      </label>
+                      <select
+                        className="w-full border-2 border-green-200 rounded-xl p-3 focus:outline-none focus:border-green-500 transition-colors"
+                        value={selectedStartTime}
+                        onChange={(e) => setSelectedStartTime(e.target.value)}
+                      >
+                        <option value="">-- Select start time --</option>
+                        {getAvailableTimeSlots(editModal.day, editModal.activityId || "").map((slot) => (
+                          <option 
+                            key={slot.time} 
+                            value={slot.time}
+                            disabled={!slot.available}
+                            className={!slot.available ? "text-gray-400" : ""}
+                          >
+                            {slot.time} {!slot.available ? `(${slot.activityName})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-green-700 mb-2">
+                        End Time
+                      </label>
+                      <select
+                        className="w-full border-2 border-green-200 rounded-xl p-3 focus:outline-none focus:border-green-500 transition-colors"
+                        value={selectedEndTime}
+                        onChange={(e) => setSelectedEndTime(e.target.value)}
+                      >
+                        <option value="">-- Select end time --</option>
+                        {getAvailableTimeSlots(editModal.day, editModal.activityId || "").map((slot) => (
+                          <option 
+                            key={slot.time} 
+                            value={slot.time}
+                            disabled={!slot.available}
+                            className={!slot.available ? "text-gray-400" : ""}
+                          >
+                            {slot.time} {!slot.available ? `(${slot.activityName})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p className="text-sm text-amber-800">
+                      <strong>Note:</strong> Times shown as unavailable are already taken by other activities on this day. 
+                      You can only modify your own activity's time range.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {previewImage && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="mb-6 rounded-2xl overflow-hidden shadow-lg"
+                    >
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="w-full h-64 object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/davao/placeholder.jpg";
+                        }}
+                      />
+                      <div className="bg-linear-to-r from-sky-50 to-blue-50 p-4">
+                        <p className="text-center font-semibold text-slate-700">{selectedValue}</p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-sky-700 mb-2">
+                        Tourist Spots
+                      </label>
+                      <select
+                        className="w-full border-2 border-sky-200 rounded-xl p-3 focus:outline-none focus:border-sky-500 transition-colors"
+                        value={selectedValue}
+                        onChange={(e) => handleSelectionChange(e.target.value)}
+                      >
+                        <option value="">-- Select a spot --</option>
+                        {province.spots.map((s) => (
+                          <option key={s.name} value={s.name}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-purple-700 mb-2">
+                        Hotels
+                      </label>
+                      <select
+                        className="w-full border-2 border-purple-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 transition-colors"
+                        value={selectedValue}
+                        onChange={(e) => handleSelectionChange(e.target.value)}
+                      >
+                        <option value="">-- Select a hotel --</option>
+                        {province.hotels.map((h) => (
+                          <option key={h.name} value={h.name}>
+                            {h.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
               )}
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-sky-700 mb-2">
-                    Tourist Spots
-                  </label>
-                  <select
-                    className="w-full border-2 border-sky-200 rounded-xl p-3 focus:outline-none focus:border-sky-500 transition-colors"
-                    value={selectedValue}
-                    onChange={(e) => handleSelectionChange(e.target.value)}
-                  >
-                    <option value="">-- Select a spot --</option>
-                    {province.spots.map((s) => (
-                      <option key={s.name} value={s.name}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-purple-700 mb-2">
-                    Hotels
-                  </label>
-                  <select
-                    className="w-full border-2 border-purple-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 transition-colors"
-                    value={selectedValue}
-                    onChange={(e) => handleSelectionChange(e.target.value)}
-                  >
-                    <option value="">-- Select a hotel --</option>
-                    {province.hotels.map((h) => (
-                      <option key={h.name} value={h.name}>
-                        {h.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => {
-                    setEditModal({ open: false, day: 0, activityId: null });
+                    setEditModal({ open: false, day: 0, activityId: null, isTimeEdit: false });
                     setPreviewImage("");
+                    setCurrentActivity(null);
                   }}
                   className="flex-1 px-4 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 font-semibold transition-colors"
                 >
@@ -761,7 +1054,11 @@ export default function ItineraryDisplay({
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="flex-1 px-4 py-3 rounded-xl bg-linear-to-r from-blue-500 to-blue-600 text-white font-semibold hover:from-blue-600 hover:to-blue-700 transition-all"
+                  className={`flex-1 px-4 py-3 rounded-xl text-white font-semibold transition-all ${
+                    editModal.isTimeEdit
+                      ? "bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                      : "bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                  }`}
                 >
                   Save Changes
                 </button>
