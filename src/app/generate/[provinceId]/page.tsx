@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams, notFound } from "next/navigation";
-import { ArrowLeft, Check, Users, Calendar, DollarSign, Car, Bus, Waves, TreePine, Building2, Landmark, Hotel } from "lucide-react";
+import { ArrowLeft, Check, Users, Calendar, DollarSign, Car, Bus, Waves, TreePine, Building2, Landmark, Hotel, ChevronLeft, ChevronRight } from "lucide-react";
 import ItineraryDisplay from "./ItineraryDisplay";
 import { provinces, getAvailableCategories, type Category, getSpotsByCategory } from "@/app/data/davaoData";
 
@@ -19,11 +19,176 @@ const transportOptions = [
 ];
 
 const categoryIcons: Record<Category, any> = {
-  Beach: Waves, 
+  Beach: Waves,
   Rural: TreePine,
   "City Tours": Building2,
   Cultural: Landmark
 };
+
+const toImageName = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + ".jpg";
+
+/* ---------------- HOTEL CAROUSEL ---------------- */
+function HotelCarousel({
+  hotels,
+  selected,
+  onSelect,
+}: {
+  hotels: { name: string; rating?: number; priceRange?: string }[];
+  selected: string;
+  onSelect: (name: string) => void;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const prev = () => setActiveIndex(i => (i === 0 ? hotels.length - 1 : i - 1));
+  const next = () => setActiveIndex(i => (i === hotels.length - 1 ? 0 : i + 1));
+
+  // Show 3 cards: prev, active, next (wrapping)
+  const getVisible = () => {
+    const len = hotels.length;
+    if (len === 1) return [{ hotel: hotels[0], pos: "center", idx: 0 }];
+    if (len === 2) return [
+      { hotel: hotels[0], pos: activeIndex === 0 ? "center" : "left", idx: 0 },
+      { hotel: hotels[1], pos: activeIndex === 1 ? "center" : "right", idx: 1 },
+    ];
+    return [
+      { hotel: hotels[(activeIndex - 1 + len) % len], pos: "left", idx: (activeIndex - 1 + len) % len },
+      { hotel: hotels[activeIndex], pos: "center", idx: activeIndex },
+      { hotel: hotels[(activeIndex + 1) % len], pos: "right", idx: (activeIndex + 1) % len },
+    ];
+  };
+
+  const visible = getVisible();
+  const activeHotel = hotels[activeIndex];
+
+  return (
+    <div className="flex flex-col items-center gap-6">
+      {/* Carousel Row */}
+      <div className="relative flex items-center justify-center w-full gap-4 py-6">
+        {/* Prev Button */}
+        {hotels.length > 1 && (
+          <button
+            onClick={prev}
+            className="z-10 p-2 rounded-full bg-white shadow-lg hover:bg-sky-50 border border-gray-200 transition-all shrink-0"
+          >
+            <ChevronLeft className="w-6 h-6 text-sky-600" />
+          </button>
+        )}
+
+        {/* Cards */}
+        <div className="flex items-center justify-center gap-4 overflow-hidden w-full">
+          {visible.map(({ hotel, pos, idx }) => {
+            const isCenter = pos === "center";
+            const isSelected = selected === hotel.name;
+            const imageName = toImageName(hotel.name);
+
+            return (
+              <div
+                key={idx}
+                onClick={() => {
+                  setActiveIndex(idx);
+                  onSelect(hotel.name);
+                }}
+                className={`
+                  relative cursor-pointer rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0
+                  ${isCenter
+                    ? "w-64 shadow-2xl scale-100 opacity-100 z-10 border-sky-400"
+                    : "w-48 shadow-md scale-90 opacity-60 z-0 border-gray-200 hover:opacity-80"
+                  }
+                  ${isSelected && isCenter ? "border-sky-500 ring-4 ring-sky-300" : ""}
+                `}
+              >
+                {/* Image */}
+                <div className={`${isCenter ? "h-44" : "h-32"} w-full overflow-hidden bg-gray-100`}>
+                  <img
+                    src={`/davao/${imageName}`}
+                    alt={hotel.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/placeholder-hotel.jpg";
+                    }}
+                  />
+                </div>
+
+                {/* Info */}
+                <div className={`bg-white p-3 ${isCenter ? "p-4" : "p-3"}`}>
+                  <h3 className={`font-bold text-gray-800 leading-tight ${isCenter ? "text-base" : "text-sm"}`}>
+                    {hotel.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {hotel.rating && (
+                      <span className="text-xs text-yellow-600 font-medium">⭐ {hotel.rating}</span>
+                    )}
+                    {hotel.priceRange && (
+                      <span className="text-xs text-gray-500">{hotel.priceRange}</span>
+                    )}
+                  </div>
+
+                  {/* Select indicator */}
+                  {isCenter && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(hotel.name);
+                      }}
+                      className={`mt-3 w-full py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        isSelected
+                          ? "bg-sky-500 text-white shadow-md"
+                          : "bg-sky-50 text-sky-600 border border-sky-300 hover:bg-sky-100"
+                      }`}
+                    >
+                      {isSelected ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <Check className="w-4 h-4" /> Selected
+                        </span>
+                      ) : (
+                        "Select"
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Next Button */}
+        {hotels.length > 1 && (
+          <button
+            onClick={next}
+            className="z-10 p-2 rounded-full bg-white shadow-lg hover:bg-sky-50 border border-gray-200 transition-all shrink-0"
+          >
+            <ChevronRight className="w-6 h-6 text-sky-600" />
+          </button>
+        )}
+      </div>
+
+      {/* Dot Indicators */}
+      {hotels.length > 1 && (
+        <div className="flex gap-2">
+          {hotels.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveIndex(i)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                i === activeIndex ? "bg-sky-500 w-6" : "bg-gray-300"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Selected Info */}
+      {selected && (
+        <div className="bg-sky-50 border-2 border-sky-200 rounded-xl px-6 py-3 text-center">
+          <p className="text-sky-700 font-semibold text-sm">
+            ✅ Selected: <span className="font-bold">{selected}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ---------------- PAGE ---------------- */
 export default function ItineraryForm() {
@@ -46,12 +211,10 @@ export default function ItineraryForm() {
   const [accommodation, setAccommodation] = useState("");
   const [transport, setTransport] = useState("");
 
-  // Calculate total spots based on selected categories
   const totalSpots = preferences.reduce((sum, cat) => {
     return sum + getSpotsByCategory(province, cat).length;
   }, 0);
 
-  // Calculate max days (total spots available)
   const maxDays = Math.max(1, totalSpots);
 
   const totalSteps = 7;
@@ -67,11 +230,8 @@ export default function ItineraryForm() {
     }
   };
 
-  // Reset days when preferences change
   useEffect(() => {
-    if (days > maxDays) {
-      setDays(maxDays);
-    }
+    if (days > maxDays) setDays(maxDays);
   }, [preferences, maxDays]);
 
   /* ---------------- STEP RENDER ---------------- */
@@ -118,7 +278,6 @@ export default function ItineraryForm() {
               })}
             </div>
 
-            {/* Show total spots selected */}
             {preferences.length > 0 && (
               <div className="bg-sky-50 border-2 border-sky-200 rounded-xl p-4 text-center">
                 <p className="text-sky-700 font-semibold">
@@ -130,7 +289,6 @@ export default function ItineraryForm() {
               </div>
             )}
 
-            {/* Budget */}
             <div className="pt-6 border-t">
               <h3 className="font-bold mb-4 flex items-center gap-2"><DollarSign className="text-sky-500"/> Budget (Optional)</h3>
               <div className="grid md:grid-cols-3 gap-4">
@@ -183,22 +341,19 @@ export default function ItineraryForm() {
           </div>
         );
 
-      /* STEP 4 - ACCOMMODATION */
+      /* STEP 4 - ACCOMMODATION CAROUSEL */
       case 4:
         return (
-          <div className="space-y-4">
+          <div className="space-y-4 text-black">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold mb-2">Choose your accommodation</h2>
-              <p className="text-gray-600">Select a hotel for your stay</p>
+              <p className="text-gray-600">Browse and select a hotel for your stay</p>
             </div>
-            <div className="grid md:grid-cols-2 gap-4 max-h-125 overflow-y-auto pr-2">
-              {province.hotels.map(h => (
-                <button key={h.name} onClick={() => setAccommodation(h.name)} className={`p-6 rounded-2xl border-2 text-left transition-all ${accommodation===h.name?"border-sky-500 bg-sky-50 shadow-lg":"border-gray-200 hover:border-sky-300"}`}>
-                  <h3 className="font-bold">{h.name}</h3>
-                  <p className="text-sm text-gray-500"><Hotel className="w-6 h-6 text-yellow-600"/></p>
-                </button>
-              ))}
-            </div>
+            <HotelCarousel
+              hotels={province.hotels}
+              selected={accommodation}
+              onSelect={setAccommodation}
+            />
           </div>
         );
 

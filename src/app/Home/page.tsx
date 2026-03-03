@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Hotel, ChevronRight, ChevronDown, LogOut, Sparkles, Compass, Tag } from "lucide-react";
+import { MapPin, Hotel, ChevronRight, ChevronDown, Sparkles, Compass, Tag } from "lucide-react";
 import { provinces, getAvailableCategories, getSpotsByCategory, type Category, Province, Destination } from "@/app/data/davaoData";
 
 export default function Home() {
@@ -11,10 +11,6 @@ export default function Home() {
   const [expandedSpot, setExpandedSpot] = useState<string | null>(null);
   const [expandedHotel, setExpandedHotel] = useState<string | null>(null);
   const router = useRouter();
-
-  const handleLogout = () => {
-    alert("Logout functionality - integrate with your Firebase auth");
-  };
 
   const selected = provinces.find(p => p.id === selectedProvince);
   const availableCategories = selected ? getAvailableCategories(selected) : [];
@@ -26,7 +22,10 @@ export default function Home() {
     "Cultural": "bg-amber-100 text-amber-700 border-amber-300"
   };
 
-  // Helper to get top 5 spots for "All" with a mix of categories
+  const getProvinceBgImage = (name: string) => {
+    return `/${name.toUpperCase().replace(/ /g, '_')}-BG.jpg`;
+  };
+
   const getTop5Spots = (province: Province, category: Category | "All") => {
     if (category === "All") {
       const categories = getAvailableCategories(province);
@@ -89,7 +88,7 @@ export default function Home() {
                 <div
                   key={province.id}
                   style={{
-                    animation: selectedProvince 
+                    animation: selectedProvince
                       ? `slideToSidebar 0.5s ease-out ${index * 0.05}s both`
                       : `slideUp 0.6s ease-out ${index * 0.1}s both`,
                     transform: isHovered && !selectedProvince ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
@@ -100,37 +99,57 @@ export default function Home() {
                   onClick={() => setSelectedProvince(isSelected ? null : province.id)}
                   className="cursor-pointer relative group"
                 >
-                  <div className={`relative h-full bg-white rounded-${selectedProvince ? 'xl' : '3xl'} p-${selectedProvince ? '4' : '6'} shadow-xl transition-all duration-300 overflow-hidden ${isSelected ? 'ring-4 ring-sky-400' : ''}`}>
+                  <div
+                    className={`relative h-full rounded-${selectedProvince ? 'xl' : '3xl'} p-${selectedProvince ? '4' : '6'} shadow-xl transition-all duration-300 overflow-hidden ${isSelected ? 'ring-4 ring-sky-400' : ''}`}
+                    style={{
+                      backgroundImage: `url('${getProvinceBgImage(province.name)}')`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  >
+                    {/* White overlay for readability */}
+                    <div className={`absolute inset-0 transition-opacity duration-300 ${isSelected ? 'bg-white/60' : 'bg-white/60'}`} />
+
+                    {/* Hover gradient overlay */}
                     <div
-                      className={`absolute inset-0 bg-linear-to-br ${province.color} transition-opacity duration-300 ${isHovered ? 'opacity-10' : 'opacity-0'}`}
+                      className={`absolute inset-0 bg-linear-to-br ${province.color} transition-opacity duration-300 ${isHovered ? 'opacity-20' : 'opacity-0'}`}
                       style={{ transform: isHovered ? 'scale(1.5) rotate(45deg)' : 'scale(1) rotate(0)', transition: 'all 0.6s ease' }}
-                    />
+                    />  
 
-                    {/* Icon */}
-                    <div style={{ transform: isHovered ? 'rotate(10deg) scale(1.1)' : 'rotate(0) scale(1)', transition: 'all 0.5s ease' }} className={`w-${selectedProvince ? '12' : '16'} h-${selectedProvince ? '12' : '16'} rounded-${selectedProvince ? 'xl' : '2xl'} bg-linear-to-br ${province.color} flex items-center justify-center mb-${selectedProvince ? '3' : '4'} shadow-lg`}>
-                      <Icon className={`w-${selectedProvince ? '6' : '8'} h-${selectedProvince ? '6' : '8'} text-white`} />
-                    </div>
-
-                    {/* Content */}
-                    <h3 className={`text-${selectedProvince ? 'lg' : '2xl'} font-bold mb-2 text-gray-800`}>{province.name}</h3>
-                    {!selectedProvince && <p className="text-sm text-gray-500 mb-4">{province.tagline}</p>}
-
-                    {/* Spots Preview */}
-                    <div className={`space-y-${selectedProvince ? '1' : '2'} mb-${selectedProvince ? '3' : '4'}`}>
-                      <div className={`flex items-center gap-2 text-${selectedProvince ? 'xs' : 'sm'} text-gray-600`}>
-                        <MapPin className={`w-${selectedProvince ? '3' : '4'} h-${selectedProvince ? '3' : '4'} text-sky-500`} />
-                        <span>{province.spots.length} Spots</span>
+                    {/* Card Content */}
+                    <div className="relative z-10">
+                      {/* Icon */}
+                      <div
+                        style={{ transform: isHovered ? 'rotate(10deg) scale(1.1)' : 'rotate(0) scale(1)', transition: 'all 0.5s ease' }}
+                        className={`w-${selectedProvince ? '12' : '16'} h-${selectedProvince ? '12' : '16'} rounded-${selectedProvince ? 'xl' : '2xl'} bg-linear-to-br ${province.color} flex items-center justify-center mb-${selectedProvince ? '3' : '4'} shadow-lg`}
+                      >
+                        <Icon className={`w-${selectedProvince ? '6' : '8'} h-${selectedProvince ? '6' : '8'} text-white`} />
                       </div>
-                      <div className={`flex items-center gap-2 text-${selectedProvince ? 'xs' : 'sm'} text-gray-600`}>
-                        <Hotel className={`w-${selectedProvince ? '3' : '4'} h-${selectedProvince ? '3' : '4'} text-blue-500`} />
-                        <span>{province.hotels.length} Hotels</span>
-                      </div>
-                    </div>
 
-                    {/* View Button */}
-                    <div style={{ transform: isHovered ? 'translateX(5px)' : 'translateX(0)', transition: 'all 0.3s ease' }} className={`flex items-center gap-2 text-${selectedProvince ? 'xs' : 'sm'} font-medium ${isSelected ? 'text-sky-600' : 'text-gray-400 group-hover:text-sky-600'}`}>
-                      {isSelected ? 'Selected' : 'View'}
-                      <ChevronRight className={`w-${selectedProvince ? '3' : '4'} h-${selectedProvince ? '3' : '4'}`} />
+                      {/* Content */}
+                      <h3 className={`text-${selectedProvince ? 'lg' : '2xl'} font-bold mb-2 text-gray-800`}>{province.name}</h3>
+                      {!selectedProvince && <p className="text-sm text-gray-600 mb-4">{province.tagline}</p>}
+
+                      {/* Spots Preview */}
+                      <div className={`space-y-${selectedProvince ? '1' : '2'} mb-${selectedProvince ? '3' : '4'}`}>
+                        <div className={`flex items-center gap-2 text-${selectedProvince ? 'xs' : 'sm'} text-gray-700`}>
+                          <MapPin className={`w-${selectedProvince ? '3' : '4'} h-${selectedProvince ? '3' : '4'} text-sky-500`} />
+                          <span>{province.spots.length} Spots</span>
+                        </div>
+                        <div className={`flex items-center gap-2 text-${selectedProvince ? 'xs' : 'sm'} text-gray-700`}>
+                          <Hotel className={`w-${selectedProvince ? '3' : '4'} h-${selectedProvince ? '3' : '4'} text-blue-500`} />
+                          <span>{province.hotels.length} Hotels</span>
+                        </div>
+                      </div>
+
+                      {/* View Button */}
+                      <div
+                        style={{ transform: isHovered ? 'translateX(5px)' : 'translateX(0)', transition: 'all 0.3s ease' }}
+                        className={`flex items-center gap-2 text-${selectedProvince ? 'xs' : 'sm'} font-medium ${isSelected ? 'text-sky-600' : 'text-gray-500 group-hover:text-sky-600'}`}
+                      >
+                        {isSelected ? 'Selected' : 'View'}
+                        <ChevronRight className={`w-${selectedProvince ? '3' : '4'} h-${selectedProvince ? '3' : '4'}`} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -190,11 +209,11 @@ export default function Home() {
                     <div className="space-y-3">
                       {filteredSpots.map((spot, idx) => {
                         const isExpanded = expandedSpot === spot.name;
-                        
+
                         return (
-                          <div 
-                            key={spot.name} 
-                            style={{ animation: `slideRight 0.5s ease-out ${0.3 + idx * 0.1}s both` }} 
+                          <div
+                            key={spot.name}
+                            style={{ animation: `slideRight 0.5s ease-out ${0.3 + idx * 0.1}s both` }}
                             className="bg-linear-to-r from-sky-50 to-blue-50 rounded-xl border border-sky-100 hover:shadow-lg transition-all overflow-hidden"
                           >
                             <div
@@ -209,18 +228,16 @@ export default function Home() {
                                     <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[spot.category]}`}>{spot.category}</span>
                                   </div>
                                 </div>
-                                <ChevronDown 
+                                <ChevronDown
                                   className={`w-5 h-5 text-sky-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                                 />
                               </div>
                             </div>
-                            
+
                             {/* Dropdown Image */}
-                            <div 
-                              className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-0'}`}
-                            >
+                            <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-0'}`}>
                               <div className="px-4 pb-4">
-                                <img 
+                                <img
                                   src={`/davao/${spot.image}`}
                                   alt={spot.name}
                                   className="w-full h-48 object-cover rounded-lg shadow-md"
@@ -248,11 +265,11 @@ export default function Home() {
                     <div className="space-y-3">
                       {selected.hotels.slice(0, 5).map((hotel, idx) => {
                         const isExpanded = expandedHotel === hotel.name;
-                        
+
                         return (
-                          <div 
-                            key={hotel.name} 
-                            style={{ animation: `slideLeft 0.5s ease-out ${0.4 + idx * 0.1}s both` }} 
+                          <div
+                            key={hotel.name}
+                            style={{ animation: `slideLeft 0.5s ease-out ${0.4 + idx * 0.1}s both` }}
                             className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:shadow-lg transition-all overflow-hidden"
                           >
                             <div
@@ -267,18 +284,16 @@ export default function Home() {
                                     {hotel.priceRange && <span className="text-xs text-gray-500">{hotel.priceRange}</span>}
                                   </div>
                                 </div>
-                                <ChevronDown 
+                                <ChevronDown
                                   className={`w-5 h-5 text-blue-500 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                                 />
                               </div>
                             </div>
-                            
+
                             {/* Dropdown Image */}
-                            <div 
-                              className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-0'}`}
-                            >
+                            <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-0'}`}>
                               <div className="px-4 pb-4">
-                                <img 
+                                <img
                                   src={`/davao/${hotel.image}`}
                                   alt={hotel.name}
                                   className="w-full h-48 object-cover rounded-lg shadow-md"
