@@ -23,7 +23,15 @@ export default function Home() {
   };
 
   const getProvinceBgImage = (name: string) => {
-    return `/${name.toUpperCase().replace(/ /g, '_')}-BG.jpg`;
+    const map: Record<string, string> = {
+      "Davao de Oro": "/oro.jpg",
+      "Davao del Norte": "/norte.jpg",
+      "Davao del Sur": "/sur.jpg",
+      "Davao Occidental": "/occidental.jpg",
+      "Davao Oriental": "/oriental.jpg",
+    };
+  
+    return map[name] || "/default.jpg";
   };
 
   const getTop5Spots = (province: Province, category: Category | "All") => {
