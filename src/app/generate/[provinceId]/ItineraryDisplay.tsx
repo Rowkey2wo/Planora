@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye, CheckCircle2, AlertCircle, GripVertical } from "lucide-react";
+import { Trash2, Pencil, FileText, MapPin, Clock, Download, X, Eye, CheckCircle2, AlertCircle, GripVertical, Sparkles, Check, Activity } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Province, Category, getSpotsByCategory } from "@/app/data/davaoData";
+import type { Activity as ProvinceActivity } from "@/app/data/davaoData";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { getAuth } from "firebase/auth";
@@ -26,6 +27,7 @@ type Props = {
   days: number;
   accommodation: string;
   transport: string;
+  selectedActivities: string[];
   currentStep: number;
   onEdit: () => void;
 };
@@ -132,6 +134,177 @@ const buildItinerary = (
   return itinerary;
 };
 
+/* ---------------- ACTIVITY CATEGORY STYLES ---------------- */
+const activityCategoryStyles: Record<ProvinceActivity["category"], { bg: string; border: string; text: string; selectedBg: string; selectedBorder: string; selectedText: string; dot: string }> = {
+  Water:     { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-700",   selectedBg: "bg-blue-500",   selectedBorder: "border-blue-500",   selectedText: "text-white", dot: "bg-blue-400" },
+  Nature:    { bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  selectedBg: "bg-green-500",  selectedBorder: "border-green-500",  selectedText: "text-white", dot: "bg-green-400" },
+  Culture:   { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", selectedBg: "bg-purple-500", selectedBorder: "border-purple-500", selectedText: "text-white", dot: "bg-purple-400" },
+  Adventure: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", selectedBg: "bg-orange-500", selectedBorder: "border-orange-500", selectedText: "text-white", dot: "bg-orange-400" },
+  Leisure:   { bg: "bg-pink-50",   border: "border-pink-200",   text: "text-pink-700",   selectedBg: "bg-pink-500",   selectedBorder: "border-pink-500",   selectedText: "text-white", dot: "bg-pink-400" },
+  Food:      { bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  selectedBg: "bg-amber-500",  selectedBorder: "border-amber-500",  selectedText: "text-white", dot: "bg-amber-400" },
+};
+
+const activityCategoryLabels: Record<ProvinceActivity["category"], string> = {
+  Water:     "🌊 Water & Beach",
+  Nature:    "🌿 Nature & Wildlife",
+  Culture:   "🏛️ Culture & Heritage",
+  Adventure: "⚡ Adventure & Thrills",
+  Leisure:   "😌 Leisure & Relaxation",
+  Food:      "🍽️ Food & Dining",
+};
+
+/* ---------------- ACTIVITIES EDIT MODAL ---------------- */
+function ActivitiesEditModal({
+  province,
+  selectedActivities,
+  onSave,
+  onClose,
+}: {
+  province: Province;
+  selectedActivities: string[];
+  onSave: (ids: string[]) => void;
+  onClose: () => void;
+}) {
+  const [local, setLocal] = useState<string[]>(selectedActivities);
+  const [activeFilter, setActiveFilter] = useState<ProvinceActivity["category"] | "All">("All");
+
+  const allCategories = Array.from(new Set(province.activities.map((a: ProvinceActivity) => a.category))) as ProvinceActivity["category"][];
+  const filtered: ProvinceActivity[] = activeFilter === "All" ? province.activities : province.activities.filter((a: ProvinceActivity) => a.category === activeFilter);
+
+  const toggle = (id: string) =>
+    setLocal(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        onClick={e => e.stopPropagation()}
+        className="bg-white rounded-3xl p-8 w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-2xl font-bold text-slate-800">Edit Activities</h3>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <X size={20} className="text-slate-500" />
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">Select the activities you want to do in {province.name}.</p>
+
+        {/* Selected count */}
+        {local.length > 0 && (
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded-2xl px-4 py-2 shadow flex items-center gap-2">
+              <span className="text-xl font-black">{local.length}</span>
+              <span className="text-sm font-bold">selected</span>
+            </div>
+            <button
+              onClick={() => setLocal([])}
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 transition-colors border border-gray-200 rounded-full px-3 py-1.5 hover:border-red-200 hover:bg-red-50"
+            >
+              <X className="w-3.5 h-3.5" /> Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Category filter */}
+        <div className="flex gap-2 flex-wrap mb-5">
+          <button
+            onClick={() => setActiveFilter("All")}
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${activeFilter === "All" ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}
+          >
+            🎯 All
+          </button>
+          {allCategories.map(cat => {
+            const style = activityCategoryStyles[cat];
+            const isActive = activeFilter === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveFilter(cat)}
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${isActive ? `${style.selectedBg} ${style.selectedText} ${style.selectedBorder}` : `bg-white ${style.text} ${style.border}`}`}
+              >
+                {activityCategoryLabels[cat].split(" ")[0]} {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+          {filtered.map((activity: ProvinceActivity) => {
+            const isSelected = local.includes(activity.id);
+            const style = activityCategoryStyles[activity.category];
+            return (
+              <button
+                key={activity.id}
+                onClick={() => toggle(activity.id)}
+                className={`relative group flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 text-center
+                  ${isSelected ? `${style.selectedBg} ${style.selectedBorder} shadow-lg scale-105` : `bg-white ${style.border} hover:shadow-md`}`}
+              >
+                {isSelected && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center border-2 border-current">
+                    <Check className={`w-3.5 h-3.5 ${style.text}`} />
+                  </div>
+                )}
+                <span className={`text-3xl transition-transform duration-200 ${isSelected ? "scale-110" : "group-hover:scale-110"}`}>{activity.emoji}</span>
+                <span className={`text-xs font-semibold leading-tight ${isSelected ? style.selectedText : style.text}`}>{activity.label}</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white/60" : style.dot}`} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Selected preview */}
+        {local.length > 0 && (
+          <div className="bg-gradient-to-r from-violet-50 to-fuchsia-50 border-2 border-violet-200 rounded-2xl p-4 mb-6">
+            <p className="text-sm font-bold text-violet-700 mb-3">✨ Your activity lineup:</p>
+            <div className="flex flex-wrap gap-2">
+              {local.map(id => {
+                const act = province.activities.find((a: ProvinceActivity) => a.id === id);
+                if (!act) return null;
+                const style = activityCategoryStyles[act.category];
+                return (
+                  <button
+                    key={id}
+                    onClick={() => toggle(id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${style.selectedBg} ${style.selectedText} shadow-sm hover:opacity-80 transition-opacity`}
+                  >
+                    {act.emoji} {act.label} <X className="w-3 h-3 opacity-70" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 font-semibold text-slate-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(local)}
+            className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white font-semibold hover:from-violet-600 hover:to-fuchsia-700 transition-all shadow-md"
+          >
+            Save Activities
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 /* ---------------- COMPONENT ---------------- */
 export default function ItineraryDisplay({
   province,
@@ -140,9 +313,12 @@ export default function ItineraryDisplay({
   pax,
   accommodation,
   transport,
+  selectedActivities,
   onEdit,
 }: Props) {
   const [itinerary, setItinerary] = useState<DayPlan[]>([]);
+  const [localSelectedActivities, setLocalSelectedActivities] = useState<string[]>(selectedActivities);
+  const [activitiesModal, setActivitiesModal] = useState(false);
   const [editModal, setEditModal] = useState<{
     open: boolean;
     day: number;
@@ -240,6 +416,7 @@ export default function ItineraryDisplay({
         pax: pax,
         accommodation: accommodation,
         transport: transport,
+        selectedActivities: localSelectedActivities.length > 0 ? localSelectedActivities : null,
         itinerary: itinerary,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -510,6 +687,36 @@ export default function ItineraryDisplay({
       pdf.text(`Categories: ${preferences.join(", ")}`, margin + 5, yPosition + 21);
       yPosition += 35;
 
+      // Activities section in PDF
+      if (localSelectedActivities.length > 0) {
+        checkNewPage(20);
+        pdf.setFillColor(245, 243, 255);
+        pdf.roundedRect(margin, yPosition, contentWidth, 12, 2, 2, "F");
+        pdf.setTextColor(109, 40, 217);
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Planned Activities (${localSelectedActivities.length})`, margin + 5, yPosition + 8);
+        yPosition += 17;
+
+        const activityLabels = localSelectedActivities.map(id => {
+          const act = province.activities.find((a: ProvinceActivity) => a.id === id);
+          return act ? act.label : id;
+        });
+
+        const activityText = activityLabels.join("  •  ");
+        const splitText = pdf.splitTextToSize(activityText, contentWidth - 10);
+        const actHeight = splitText.length * 6 + 10;
+        checkNewPage(actHeight);
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(221, 214, 254);
+        pdf.roundedRect(margin, yPosition, contentWidth, actHeight, 2, 2, "FD");
+        pdf.setTextColor(109, 40, 217);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(splitText, margin + 5, yPosition + 7);
+        yPosition += actHeight + 8;
+      }
+
       itinerary.forEach((dayPlan) => {
         checkNewPage(20);
         pdf.setFillColor(14, 165, 233);
@@ -621,6 +828,11 @@ export default function ItineraryDisplay({
             {days} Day{days > 1 ? "s" : ""} • {pax} Traveler{pax > 1 ? "s" : ""} •{" "}
             {totalSpotsInItinerary} Spots • {accommodation}
           </p>
+          {localSelectedActivities.length > 0 && (
+            <p className="text-sm text-violet-600 mt-1">
+              {localSelectedActivities.length} activit{localSelectedActivities.length === 1 ? "y" : "ies"} planned
+            </p>
+          )}
           <p className="text-sm text-sky-600 mt-2">💡 Drag activities to reorder them!</p>
         </motion.div>
 
@@ -657,6 +869,80 @@ export default function ItineraryDisplay({
             <FileText size={18} />
             {isGeneratingPDF ? "Generating..." : "Download PDF"}
           </button>
+        </motion.div>
+
+        {/* Activities Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <div className="bg-white rounded-3xl shadow-xl border border-violet-100 overflow-hidden">
+            {/* Header */}
+            <div className="bg-linear-to-r from-violet-500 to-fuchsia-600 px-6 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                  <Activity className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white">Planned Activities</h2>
+                  <p className="text-white/80 text-sm">
+                    {localSelectedActivities.length > 0
+                      ? `${localSelectedActivities.length} activit${localSelectedActivities.length === 1 ? "y" : "ies"} selected`
+                      : "No activities selected yet"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActivitiesModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all border border-white/30 text-sm"
+              >
+                <Pencil size={16} /> Edit Activities
+              </button>
+            </div>
+
+            <div className="p-6">
+              {localSelectedActivities.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-gray-400 italic text-sm mb-4">No activities have been selected for this trip.</p>
+                  <button
+                    onClick={() => setActivitiesModal(true)}
+                    className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white rounded-xl font-semibold text-sm shadow hover:shadow-md hover:scale-105 transition-all"
+                  >
+                    + Add Activities
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {(["Water", "Nature", "Culture", "Adventure", "Leisure", "Food"] as ProvinceActivity["category"][]).map(cat => {
+                    const catActivities = localSelectedActivities
+                      .map(id => province.activities.find((a: ProvinceActivity) => a.id === id))
+                      .filter((a): a is ProvinceActivity => !!a && a.category === cat);
+                    if (catActivities.length === 0) return null;
+                    const style = activityCategoryStyles[cat];
+                    return (
+                      <div key={cat} className="mb-4 last:mb-0">
+                        <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${style.text}`}>
+                          {activityCategoryLabels[cat]}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {catActivities.map(act => (
+                            <span
+                              key={act.id}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${style.bg} ${style.text} border ${style.border}`}
+                            >
+                              {act.emoji} {act.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
         </motion.div>
 
         {/* Itinerary Cards */}
@@ -833,6 +1119,22 @@ export default function ItineraryDisplay({
           </motion.div>
         )}
       </div>
+
+      {/* Activities Edit Modal */}
+      <AnimatePresence>
+        {activitiesModal && (
+          <ActivitiesEditModal
+            province={province}
+            selectedActivities={localSelectedActivities}
+            onSave={(ids) => {
+              setLocalSelectedActivities(ids);
+              setActivitiesModal(false);
+              showToast("success", "Activities updated!");
+            }}
+            onClose={() => setActivitiesModal(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Image Modal */}
       <AnimatePresence>

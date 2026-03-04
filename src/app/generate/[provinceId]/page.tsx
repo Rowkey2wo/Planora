@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams, notFound } from "next/navigation";
-import { ArrowLeft, Check, Users, Calendar, DollarSign, Car, Bus, Waves, TreePine, Building2, Landmark, Hotel, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, Users, Calendar, DollarSign, Car, Bus, Waves, TreePine, Building2, Landmark, Hotel, ChevronLeft, ChevronRight, Sparkles, X } from "lucide-react";
 import ItineraryDisplay from "./ItineraryDisplay";
-import { provinces, getAvailableCategories, type Category, getSpotsByCategory } from "@/app/data/davaoData";
+import { provinces, getAvailableCategories, type Category, getSpotsByCategory, type Activity } from "@/app/data/davaoData";
 
 /* ---------------- STATIC OPTIONS ---------------- */
 const budgetRanges = [
@@ -28,6 +28,25 @@ const categoryIcons: Record<Category, any> = {
 const toImageName = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + ".jpg";
 
+/* ---------------- ACTIVITY CATEGORY STYLES ---------------- */
+const activityCategoryStyles: Record<Activity["category"], { bg: string; border: string; text: string; selectedBg: string; selectedBorder: string; selectedText: string; dot: string }> = {
+  Water:     { bg: "bg-blue-50",   border: "border-blue-200",   text: "text-blue-700",   selectedBg: "bg-blue-500",   selectedBorder: "border-blue-500",   selectedText: "text-white", dot: "bg-blue-400" },
+  Nature:    { bg: "bg-green-50",  border: "border-green-200",  text: "text-green-700",  selectedBg: "bg-green-500",  selectedBorder: "border-green-500",  selectedText: "text-white", dot: "bg-green-400" },
+  Culture:   { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", selectedBg: "bg-purple-500", selectedBorder: "border-purple-500", selectedText: "text-white", dot: "bg-purple-400" },
+  Adventure: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", selectedBg: "bg-orange-500", selectedBorder: "border-orange-500", selectedText: "text-white", dot: "bg-orange-400" },
+  Leisure:   { bg: "bg-pink-50",   border: "border-pink-200",   text: "text-pink-700",   selectedBg: "bg-pink-500",   selectedBorder: "border-pink-500",   selectedText: "text-white", dot: "bg-pink-400" },
+  Food:      { bg: "bg-amber-50",  border: "border-amber-200",  text: "text-amber-700",  selectedBg: "bg-amber-500",  selectedBorder: "border-amber-500",  selectedText: "text-white", dot: "bg-amber-400" },
+};
+
+const activityCategoryLabels: Record<Activity["category"], string> = {
+  Water: "🌊 Water & Beach",
+  Nature: "🌿 Nature & Wildlife",
+  Culture: "🏛️ Culture & Heritage",
+  Adventure: "⚡ Adventure & Thrills",
+  Leisure: "😌 Leisure & Relaxation",
+  Food: "🍽️ Food & Dining",
+};
+
 /* ---------------- HOTEL CAROUSEL ---------------- */
 function HotelCarousel({
   hotels,
@@ -43,7 +62,6 @@ function HotelCarousel({
   const prev = () => setActiveIndex(i => (i === 0 ? hotels.length - 1 : i - 1));
   const next = () => setActiveIndex(i => (i === hotels.length - 1 ? 0 : i + 1));
 
-  // Show 3 cards: prev, active, next (wrapping)
   const getVisible = () => {
     const len = hotels.length;
     if (len === 1) return [{ hotel: hotels[0], pos: "center", idx: 0 }];
@@ -59,91 +77,38 @@ function HotelCarousel({
   };
 
   const visible = getVisible();
-  const activeHotel = hotels[activeIndex];
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* Carousel Row */}
       <div className="relative flex items-center justify-center w-full gap-4 py-6">
-        {/* Prev Button */}
         {hotels.length > 1 && (
-          <button
-            onClick={prev}
-            className="z-10 p-2 rounded-full bg-white shadow-lg hover:bg-sky-50 border border-gray-200 transition-all shrink-0"
-          >
+          <button onClick={prev} className="z-10 p-2 rounded-full bg-white shadow-lg hover:bg-sky-50 border border-gray-200 transition-all shrink-0">
             <ChevronLeft className="w-6 h-6 text-sky-600" />
           </button>
         )}
-
-        {/* Cards */}
         <div className="flex items-center justify-center gap-4 overflow-hidden w-full">
           {visible.map(({ hotel, pos, idx }) => {
             const isCenter = pos === "center";
             const isSelected = selected === hotel.name;
             const imageName = toImageName(hotel.name);
-
             return (
               <div
                 key={idx}
-                onClick={() => {
-                  setActiveIndex(idx);
-                  onSelect(hotel.name);
-                }}
-                className={`
-                  relative cursor-pointer rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0
-                  ${isCenter
-                    ? "w-64 shadow-2xl scale-100 opacity-100 z-10 border-sky-400"
-                    : "w-48 shadow-md scale-90 opacity-60 z-0 border-gray-200 hover:opacity-80"
-                  }
-                  ${isSelected && isCenter ? "border-sky-500 ring-4 ring-sky-300" : ""}
-                `}
+                onClick={() => { setActiveIndex(idx); onSelect(hotel.name); }}
+                className={`relative cursor-pointer rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0 ${isCenter ? "w-64 shadow-2xl scale-100 opacity-100 z-10 border-sky-400" : "w-48 shadow-md scale-90 opacity-60 z-0 border-gray-200 hover:opacity-80"} ${isSelected && isCenter ? "border-sky-500 ring-4 ring-sky-300" : ""}`}
               >
-                {/* Image */}
                 <div className={`${isCenter ? "h-44" : "h-32"} w-full overflow-hidden bg-gray-100`}>
-                  <img
-                    src={`/davao/${imageName}`}
-                    alt={hotel.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = "/images/placeholder-hotel.jpg";
-                    }}
-                  />
+                  <img src={`/davao/${imageName}`} alt={hotel.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = "/images/placeholder-hotel.jpg"; }} />
                 </div>
-
-                {/* Info */}
                 <div className={`bg-white p-3 ${isCenter ? "p-4" : "p-3"}`}>
-                  <h3 className={`font-bold text-gray-800 leading-tight ${isCenter ? "text-base" : "text-sm"}`}>
-                    {hotel.name}
-                  </h3>
+                  <h3 className={`font-bold text-gray-800 leading-tight ${isCenter ? "text-base" : "text-sm"}`}>{hotel.name}</h3>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {hotel.rating && (
-                      <span className="text-xs text-yellow-600 font-medium">⭐ {hotel.rating}</span>
-                    )}
-                    {hotel.priceRange && (
-                      <span className="text-xs text-gray-500">{hotel.priceRange}</span>
-                    )}
+                    {hotel.rating && <span className="text-xs text-yellow-600 font-medium">⭐ {hotel.rating}</span>}
+                    {hotel.priceRange && <span className="text-xs text-gray-500">{hotel.priceRange}</span>}
                   </div>
-
-                  {/* Select indicator */}
                   {isCenter && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(hotel.name);
-                      }}
-                      className={`mt-3 w-full py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "bg-sky-500 text-white shadow-md"
-                          : "bg-sky-50 text-sky-600 border border-sky-300 hover:bg-sky-100"
-                      }`}
-                    >
-                      {isSelected ? (
-                        <span className="flex items-center justify-center gap-1">
-                          <Check className="w-4 h-4" /> Selected
-                        </span>
-                      ) : (
-                        "Select"
-                      )}
+                    <button onClick={(e) => { e.stopPropagation(); onSelect(hotel.name); }} className={`mt-3 w-full py-1.5 rounded-lg text-sm font-semibold transition-all ${isSelected ? "bg-sky-500 text-white shadow-md" : "bg-sky-50 text-sky-600 border border-sky-300 hover:bg-sky-100"}`}>
+                      {isSelected ? <span className="flex items-center justify-center gap-1"><Check className="w-4 h-4" /> Selected</span> : "Select"}
                     </button>
                   )}
                 </div>
@@ -151,39 +116,165 @@ function HotelCarousel({
             );
           })}
         </div>
-
-        {/* Next Button */}
         {hotels.length > 1 && (
-          <button
-            onClick={next}
-            className="z-10 p-2 rounded-full bg-white shadow-lg hover:bg-sky-50 border border-gray-200 transition-all shrink-0"
-          >
+          <button onClick={next} className="z-10 p-2 rounded-full bg-white shadow-lg hover:bg-sky-50 border border-gray-200 transition-all shrink-0">
             <ChevronRight className="w-6 h-6 text-sky-600" />
           </button>
         )}
       </div>
-
-      {/* Dot Indicators */}
       {hotels.length > 1 && (
         <div className="flex gap-2">
           {hotels.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveIndex(i)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                i === activeIndex ? "bg-sky-500 w-6" : "bg-gray-300"
-              }`}
-            />
+            <button key={i} onClick={() => setActiveIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === activeIndex ? "bg-sky-500 w-6" : "bg-gray-300"}`} />
           ))}
         </div>
       )}
-
-      {/* Selected Info */}
       {selected && (
         <div className="bg-sky-50 border-2 border-sky-200 rounded-xl px-6 py-3 text-center">
-          <p className="text-sky-700 font-semibold text-sm">
-            ✅ Selected: <span className="font-bold">{selected}</span>
-          </p>
+          <p className="text-sky-700 font-semibold text-sm">✅ Selected: <span className="font-bold">{selected}</span></p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- ACTIVITIES STEP ---------------- */
+function ActivitiesStep({
+  province,
+  selectedActivities,
+  onToggle,
+}: {
+  province: { activities: Activity[]; name: string };
+  selectedActivities: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [activeFilter, setActiveFilter] = useState<Activity["category"] | "All">("All");
+  const allCategories = Array.from(new Set(province.activities.map((a: Activity) => a.category))) as Activity["category"][];
+  const activities: Activity[] = province.activities;
+
+  const filtered = activeFilter === "All" ? activities : activities.filter(a => a.category === activeFilter);
+  const selectedCount = selectedActivities.length;
+
+  return (
+    <div className="space-y-6 text-black">
+      {/* Header */}
+      <div className="text-center relative">
+        <div className="inline-flex items-center gap-2 bg-linear-to-r from-violet-100 to-fuchsia-100 border border-violet-200 rounded-full px-4 py-1.5 mb-3">
+          <span className="text-sm font-semibold text-violet-700">Optional Step</span>
+        </div>
+        <h2 className="text-3xl font-bold mb-2">What will you do there?</h2>
+        <p className="text-gray-500">Pick the activities you're excited about — or skip and we'll surprise you!</p>
+      </div>
+
+      {/* Selected count bubble */}
+      {selectedCount > 0 && (
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className="bg-linear-to-r from-violet-500 to-fuchsia-500 text-white rounded-2xl px-5 py-2.5 shadow-lg flex items-center gap-3">
+            <span className="text-2xl font-black">{selectedCount}</span>
+            <div>
+              <p className="text-sm font-bold leading-none">activit{selectedCount === 1 ? "y" : "ies"} selected</p>
+              <p className="text-xs text-white/70 mt-0.5">tap to deselect</p>
+            </div>
+          </div>
+          <button
+            onClick={() => selectedActivities.forEach(id => onToggle(id))}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 transition-colors border border-gray-200 rounded-full px-3 py-2 hover:border-red-200 hover:bg-red-50"
+          >
+            <X className="w-3.5 h-3.5" /> Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Category Filter Pills */}
+      <div className="flex gap-2 flex-wrap justify-center">
+        <button
+          onClick={() => setActiveFilter("All")}
+          className={`px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all ${activeFilter === "All" ? "bg-gray-800 text-white border-gray-800 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}
+        >
+          🎯 All
+        </button>
+        {allCategories.map(cat => {
+          const style = activityCategoryStyles[cat];
+          const isActive = activeFilter === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveFilter(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all ${isActive ? `${style.selectedBg} ${style.selectedText} ${style.selectedBorder} shadow-md` : `bg-white ${style.text} ${style.border} hover:${style.bg}`}`}
+            >
+              {activityCategoryLabels[cat].split(" ")[0]} {cat}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Activity Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {filtered.map((activity) => {
+          const isSelected = selectedActivities.includes(activity.id);
+          const style = activityCategoryStyles[activity.category];
+          return (
+            <button
+              key={activity.id}
+              onClick={() => onToggle(activity.id)}
+              className={`relative group flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 text-center
+                ${isSelected
+                  ? `${style.selectedBg} ${style.selectedBorder} shadow-lg scale-105`
+                  : `bg-white ${style.border} hover:${style.bg} hover:scale-102 hover:shadow-md`
+                }`}
+            >
+              {/* Check badge */}
+              {isSelected && (
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center border-2 border-current">
+                  <Check className={`w-3.5 h-3.5 ${style.text}`} style={{ color: isSelected ? "white" : undefined }} />
+                </div>
+              )}
+
+              {/* Emoji */}
+              <span className={`text-3xl transition-transform duration-200 ${isSelected ? "scale-110" : "group-hover:scale-110"}`}>
+                {activity.emoji}
+              </span>
+
+              {/* Label */}
+              <span className={`text-xs font-semibold leading-tight ${isSelected ? style.selectedText : style.text}`}>
+                {activity.label}
+              </span>
+
+              {/* Category dot */}
+              <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white/60" : style.dot}`} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected Activities Preview */}
+      {selectedCount > 0 && (
+        <div className="bg-linear-to-r from-violet-50 to-fuchsia-50 border-2 border-violet-200 rounded-2xl p-5">
+          <p className="text-sm font-bold text-violet-700 mb-3">Your activity lineup:</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedActivities.map(id => {
+              const act = activities.find(a => a.id === id);
+              if (!act) return null;
+              const style = activityCategoryStyles[act.category];
+              return (
+                <button
+                  key={id}
+                  onClick={() => onToggle(id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${style.selectedBg} ${style.selectedText} shadow-sm hover:opacity-80 transition-opacity`}
+                >
+                  {act.emoji} {act.label}
+                  <X className="w-3 h-3 opacity-70" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Skip hint */}
+      {selectedCount === 0 && (
+        <div className="text-center py-2">
+          <p className="text-sm text-gray-400 italic">💡 No activities selected — that's totally fine! You can skip this step.</p>
         </div>
       )}
     </div>
@@ -209,6 +300,7 @@ export default function ItineraryForm() {
   const [pax, setPax] = useState(1);
   const [days, setDays] = useState(1);
   const [accommodation, setAccommodation] = useState("");
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [transport, setTransport] = useState("");
 
   const totalSpots = preferences.reduce((sum, cat) => {
@@ -217,17 +309,26 @@ export default function ItineraryForm() {
 
   const maxDays = Math.max(1, totalSpots);
 
+  // Steps: 1=interests, 2=pax, 3=days, 4=accommodation, 5=activities, 6=transport, 7=review, 8=itinerary
   const totalSteps = 7;
+
   const canProceed = () => {
     switch (currentStep) {
       case 1: return preferences.length > 0;
       case 2: return pax > 0;
       case 3: return days > 0;
       case 4: return accommodation !== "";
-      case 5: return transport !== "";
-      case 6: return true;
+      case 5: return true; // activities is optional
+      case 6: return transport !== "";
+      case 7: return true;
       default: return true;
     }
+  };
+
+  const toggleActivity = (id: string) => {
+    setSelectedActivities(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    );
   };
 
   useEffect(() => {
@@ -357,8 +458,18 @@ export default function ItineraryForm() {
           </div>
         );
 
-      /* STEP 5 - TRANSPORT */
+      /* STEP 5 - ACTIVITIES (NEW) */
       case 5:
+        return (
+          <ActivitiesStep
+            province={province}
+            selectedActivities={selectedActivities}
+            onToggle={toggleActivity}
+          />
+        );
+
+      /* STEP 6 - TRANSPORT */
+      case 6:
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
@@ -380,8 +491,8 @@ export default function ItineraryForm() {
           </div>
         );
 
-      /* STEP 6 - REVIEW */
-      case 6:
+      /* STEP 7 - REVIEW */
+      case 7:
         return (
           <div className="space-y-4">
             <h2 className="text-3xl font-bold text-center mb-6">Review Your Trip</h2>
@@ -414,10 +525,33 @@ export default function ItineraryForm() {
                 <span className="font-semibold text-gray-600">Hotel:</span>
                 <span className="font-bold text-gray-800">{accommodation}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between border-b pb-2">
                 <span className="font-semibold text-gray-600">Transport:</span>
                 <span className="font-bold text-gray-800">{transport}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-600">Activities:</span>
+                <span className="font-bold text-gray-800">
+                  {selectedActivities.length > 0
+                    ? `${selectedActivities.length} selected`
+                    : <span className="text-gray-400 font-normal italic">None selected</span>
+                  }
+                </span>
+              </div>
+              {selectedActivities.length > 0 && (
+                <div className="pt-2 flex flex-wrap gap-2">
+                  {selectedActivities.map(id => {
+                    const act = province.activities.find(a => a.id === id);
+                    if (!act) return null;
+                    const style = activityCategoryStyles[act.category];
+                    return (
+                      <span key={id} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} border ${style.border}`}>
+                        {act.emoji} {act.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -429,7 +563,7 @@ export default function ItineraryForm() {
 
   /* ---------------- SCROLL ---------------- */
   useEffect(() => {
-    if (currentStep === 7 && itineraryRef.current) itineraryRef.current.scrollIntoView({ behavior: "smooth" });
+    if (currentStep === 8 && itineraryRef.current) itineraryRef.current.scrollIntoView({ behavior: "smooth" });
   }, [currentStep]);
 
   return (
@@ -438,17 +572,19 @@ export default function ItineraryForm() {
         <button onClick={() => router.back()} className="mb-6 flex items-center gap-2 mt-5 cursor-pointer hover:text-sky-600 transition-colors"><ArrowLeft/> Back</button>
         <h1 className="text-4xl font-bold text-center mb-10">Plan your trip to {province.name}</h1>
 
-        {currentStep < 7 && <div className="bg-white rounded-3xl shadow-2xl p-10 mb-8">{renderStep()}</div>}
+        {currentStep < 8 && <div className="bg-white rounded-3xl shadow-2xl p-10 mb-8">{renderStep()}</div>}
 
         <div className="flex justify-between mb-8">
-          {currentStep < 7 && <>
+          {currentStep < 8 && <>
             <button disabled={currentStep===1} onClick={() => setCurrentStep(s=>s-1)} className="px-6 py-3 rounded-xl bg-white shadow disabled:opacity-40 hover:bg-gray-50 transition-colors">Previous</button>
-            <button disabled={!canProceed()} onClick={() => setCurrentStep(s=>s+1)} className="px-6 py-3 rounded-xl bg-linear-to-r from-sky-500 to-blue-600 text-white disabled:opacity-40 hover:shadow-lg transition-all">Next</button>
+            <button disabled={!canProceed()} onClick={() => setCurrentStep(s=>s+1)} className="px-6 py-3 rounded-xl bg-linear-to-r from-sky-500 to-blue-600 text-white disabled:opacity-40 hover:shadow-lg transition-all">
+              {currentStep === 5 && selectedActivities.length === 0 ? "Skip" : "Next"}
+            </button>
           </>}
         </div>
 
-        {/* STEP 7 - ITINERARY DISPLAY */}
-        {currentStep===7 && (
+        {/* STEP 8 - ITINERARY DISPLAY */}
+        {currentStep === 8 && (
           <div ref={itineraryRef}>
             <ItineraryDisplay
               province={province}
@@ -457,6 +593,7 @@ export default function ItineraryForm() {
               days={days}
               accommodation={accommodation}
               transport={transport}
+              selectedActivities={selectedActivities}
               currentStep={currentStep}
               onEdit={() => setCurrentStep(1)}
             />

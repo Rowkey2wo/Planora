@@ -18,6 +18,13 @@ export interface Hotel {
   image: string;
 }
 
+export interface Activity {
+  id: string;
+  label: string;
+  emoji: string;
+  category: "Water" | "Nature" | "Culture" | "Adventure" | "Leisure" | "Food";
+}
+
 export interface Province {
   id: string;
   name: string;
@@ -26,6 +33,7 @@ export interface Province {
   color: string;
   spots: Destination[];
   hotels: Hotel[];
+  activities: Activity[];
   coordinates: {
     lat: number;
     lng: number;
@@ -33,6 +41,148 @@ export interface Province {
 }
 
 export const davaoCityCategories: Category[] = ["Beach", "Rural", "City Tours", "Cultural"];
+
+const davaoDeOroActivities: Activity[] = [
+  { id: "swimming", label: "Swimming", emoji: "🏊", category: "Water" },
+  { id: "island-exploration", label: "Island Exploration", emoji: "🏝️", category: "Adventure" },
+  { id: "infinity-pool", label: "Infinity Pool", emoji: "💦", category: "Leisure" },
+  { id: "water-slides", label: "Water Slides", emoji: "🌊", category: "Water" },
+  { id: "team-building", label: "Team Building", emoji: "🤝", category: "Leisure" },
+  { id: "dining", label: "Dining", emoji: "🍽️", category: "Food" },
+  { id: "overnight-stays", label: "Overnight Stays", emoji: "🌙", category: "Leisure" },
+  { id: "leisure-walks", label: "Leisure Walks", emoji: "🚶", category: "Leisure" },
+  { id: "local-gatherings", label: "Local Gatherings", emoji: "👥", category: "Culture" },
+  { id: "sightseeing", label: "Sightseeing", emoji: "👀", category: "Leisure" },
+  { id: "photography", label: "Photography", emoji: "📸", category: "Leisure" },
+  { id: "hiking", label: "Hiking", emoji: "🥾", category: "Adventure" },
+  { id: "picnicking", label: "Picnicking", emoji: "🧺", category: "Leisure" },
+  { id: "camping", label: "Camping", emoji: "⛺", category: "Adventure" },
+  { id: "bamboo-rafting", label: "Bamboo Rafting", emoji: "🛶", category: "Water" },
+  { id: "kayaking", label: "Kayaking", emoji: "🚣", category: "Water" },
+  { id: "trekking", label: "Trekking", emoji: "🏔️", category: "Adventure" },
+  { id: "relaxation", label: "Relaxation", emoji: "😌", category: "Leisure" },
+  { id: "mountain-climbing", label: "Mountain Climbing", emoji: "🧗", category: "Adventure" },
+  { id: "sunset-viewing", label: "Sunset Viewing", emoji: "🌅", category: "Leisure" },
+];
+
+const davaDelNorteActivities: Activity[] = [
+  { id: "swimming", label: "Swimming", emoji: "🏊", category: "Water" },
+  { id: "sunbathing", label: "Sunbathing", emoji: "☀️", category: "Leisure" },
+  { id: "picnicking", label: "Picnicking", emoji: "🧺", category: "Leisure" },
+  { id: "kayaking", label: "Kayaking", emoji: "🚣", category: "Water" },
+  { id: "snorkeling", label: "Snorkeling", emoji: "🤿", category: "Water" },
+  { id: "beach-camping", label: "Beach Camping", emoji: "⛺", category: "Adventure" },
+  { id: "scuba-diving", label: "Scuba Diving", emoji: "🌊", category: "Water" },
+  { id: "island-hopping", label: "Island Hopping", emoji: "🏝️", category: "Adventure" },
+  { id: "skimboarding", label: "Skimboarding", emoji: "🏄", category: "Water" },
+  { id: "banana-boat", label: "Banana Boat", emoji: "🍌", category: "Water" },
+  { id: "stand-up-paddleboard", label: "Stand-Up Paddleboard", emoji: "🏄‍♂️", category: "Water" },
+  { id: "river-cruise", label: "River Cruise", emoji: "🛥️", category: "Water" },
+  { id: "forest-tour", label: "Forest Tour", emoji: "🌲", category: "Nature" },
+  { id: "plantation-tour", label: "Plantation Tour", emoji: "🌿", category: "Nature" },
+  { id: "twilight-safari", label: "Twilight Safari", emoji: "🦇", category: "Nature" },
+  { id: "fishing", label: "Fishing", emoji: "🎣", category: "Leisure" },
+  { id: "biking", label: "Biking", emoji: "🚴", category: "Adventure" },
+  { id: "horseback-riding", label: "Horseback Riding", emoji: "🐴", category: "Adventure" },
+  { id: "cliff-diving", label: "Cliff Diving", emoji: "🪂", category: "Adventure" },
+  { id: "beach-walks", label: "Beach Walks", emoji: "🚶‍♀️", category: "Leisure" },
+  { id: "cultural-shows", label: "Cultural Shows", emoji: "🎭", category: "Culture" },
+  { id: "diving", label: "Diving", emoji: "🤽", category: "Water" },
+  { id: "sandbar-walking", label: "Sandbar Walking", emoji: "👣", category: "Leisure" },
+  { id: "outdoor-recreation", label: "Outdoor Recreation", emoji: "🏕️", category: "Adventure" },
+  { id: "shopping", label: "Shopping", emoji: "🛍️", category: "Leisure" },
+  { id: "walking-tours", label: "Walking Tours", emoji: "🗺️", category: "Culture" },
+  { id: "historical-appreciation", label: "Historical Appreciation", emoji: "🏛️", category: "Culture" },
+  { id: "sunset-viewing", label: "Sunset Viewing", emoji: "🌅", category: "Leisure" },
+  { id: "photography", label: "Photography", emoji: "📸", category: "Leisure" },
+  { id: "dining", label: "Dining", emoji: "🍽️", category: "Food" },
+];
+
+const davaoDelSurActivities: Activity[] = [
+  { id: "swimming", label: "Swimming", emoji: "🏊", category: "Water" },
+  { id: "eco-tours", label: "Eco-Tours", emoji: "🌿", category: "Nature" },
+  { id: "kayaking", label: "Kayaking", emoji: "🚣", category: "Water" },
+  { id: "boating", label: "Boating", emoji: "🛥️", category: "Water" },
+  { id: "scenic-viewing", label: "Scenic Viewing", emoji: "🏔️", category: "Leisure" },
+  { id: "photography", label: "Photography", emoji: "📸", category: "Leisure" },
+  { id: "relaxation", label: "Relaxation", emoji: "😌", category: "Leisure" },
+  { id: "picnicking", label: "Picnicking", emoji: "🧺", category: "Leisure" },
+  { id: "meditation", label: "Meditation", emoji: "🧘", category: "Leisure" },
+  { id: "waterfront-strolling", label: "Waterfront Strolling", emoji: "🚶", category: "Leisure" },
+  { id: "jogging", label: "Jogging", emoji: "🏃", category: "Adventure" },
+  { id: "dining", label: "Dining", emoji: "🍽️", category: "Food" },
+  { id: "shopping", label: "Shopping", emoji: "🛍️", category: "Leisure" },
+  { id: "butterfly-watching", label: "Butterfly Watching", emoji: "🦋", category: "Nature" },
+  { id: "guided-tours", label: "Guided Tours", emoji: "🗺️", category: "Culture" },
+  { id: "street-food", label: "Street Food", emoji: "🍢", category: "Food" },
+  { id: "historical-learning", label: "Historical Learning", emoji: "📜", category: "Culture" },
+  { id: "cultural-appreciation", label: "Cultural Appreciation", emoji: "🏺", category: "Culture" },
+  { id: "bird-watching", label: "Bird Watching", emoji: "🦅", category: "Nature" },
+  { id: "museum-tours", label: "Museum Tours", emoji: "🏛️", category: "Culture" },
+  { id: "hiking", label: "Hiking", emoji: "🥾", category: "Adventure" },
+  { id: "nature-trekking", label: "Nature Trekking", emoji: "🏕️", category: "Adventure" },
+  { id: "summit-climbing", label: "Summit Climbing", emoji: "🧗", category: "Adventure" },
+  { id: "prayer-reflection", label: "Prayer & Reflection", emoji: "🙏", category: "Leisure" },
+  { id: "garden-walking", label: "Garden Walking", emoji: "🌸", category: "Nature" },
+  { id: "skating", label: "Skating", emoji: "⛸️", category: "Adventure" },
+  { id: "art-installations", label: "Art Installations", emoji: "🎨", category: "Culture" },
+  { id: "religious-visits", label: "Religious Visits", emoji: "⛪", category: "Culture" },
+  { id: "campus-walks", label: "Campus Walks", emoji: "🏫", category: "Leisure" },
+];
+
+const davaoOccidentalActivities: Activity[] = [
+  { id: "volcano-trekking", label: "Volcano Trekking", emoji: "🌋", category: "Adventure" },
+  { id: "island-hopping", label: "Island Hopping", emoji: "🏝️", category: "Adventure" },
+  { id: "caving", label: "Caving", emoji: "🦇", category: "Adventure" },
+  { id: "beach-relaxation", label: "Beach Relaxation", emoji: "🏖️", category: "Leisure" },
+  { id: "sunrise-viewing", label: "Sunrise Viewing", emoji: "🌄", category: "Leisure" },
+  { id: "fishing-boating", label: "Fishing & Boating", emoji: "🎣", category: "Leisure" },
+  { id: "camping", label: "Camping", emoji: "⛺", category: "Adventure" },
+  { id: "cycling-jogging", label: "Cycling & Jogging", emoji: "🚴", category: "Adventure" },
+  { id: "food-trips", label: "Food Trips", emoji: "🍽️", category: "Food" },
+  { id: "photography", label: "Photography", emoji: "📸", category: "Leisure" },
+  { id: "swimming", label: "Swimming", emoji: "🏊", category: "Water" },
+  { id: "coves-exploration", label: "Coves Exploration", emoji: "🗺️", category: "Adventure" },
+  { id: "nature-walks", label: "Nature Walks", emoji: "🌿", category: "Nature" },
+  { id: "cultural-tours", label: "Cultural Tours", emoji: "🏺", category: "Culture" },
+  { id: "heritage-appreciation", label: "Heritage Appreciation", emoji: "🏛️", category: "Culture" },
+  { id: "leisure-walks", label: "Leisure Walks", emoji: "🚶", category: "Leisure" },
+  { id: "family-activities", label: "Family Activities", emoji: "👨‍👩‍👧", category: "Leisure" },
+  { id: "sightseeing", label: "Sightseeing", emoji: "👀", category: "Leisure" },
+  { id: "lagoon-visits", label: "Lagoon Visits", emoji: "💦", category: "Water" },
+];
+
+const davaoOrientalActivities: Activity[] = [
+  { id: "surfing", label: "Surfing", emoji: "🏄", category: "Water" },
+  { id: "dolphin-watching", label: "Dolphin Watching", emoji: "🐬", category: "Nature" },
+  { id: "turtle-conservation", label: "Turtle Conservation", emoji: "🐢", category: "Nature" },
+  { id: "sunrise-viewing", label: "Sunrise Viewing", emoji: "🌄", category: "Leisure" },
+  { id: "mangrove-walking", label: "Mangrove Walking", emoji: "🌳", category: "Nature" },
+  { id: "hot-spring-bathing", label: "Hot Spring Bathing", emoji: "♨️", category: "Leisure" },
+  { id: "cold-river-dip", label: "Cold River Dip", emoji: "🏊", category: "Water" },
+  { id: "lighthouse-climbing", label: "Lighthouse Climbing", emoji: "🗼", category: "Adventure" },
+  { id: "island-hopping", label: "Island Hopping", emoji: "🏝️", category: "Adventure" },
+  { id: "snorkeling", label: "Snorkeling", emoji: "🤿", category: "Water" },
+  { id: "skimboarding", label: "Skimboarding", emoji: "🏄‍♀️", category: "Water" },
+  { id: "camping", label: "Camping", emoji: "⛺", category: "Adventure" },
+  { id: "hammock-lounging", label: "Hammock Lounging", emoji: "🛌", category: "Leisure" },
+  { id: "coral-reef-exploration", label: "Coral Reef Exploration", emoji: "🪸", category: "Nature" },
+  { id: "cliff-exploration", label: "Cliff Exploration", emoji: "🧗", category: "Adventure" },
+  { id: "hiking-trekking", label: "Hiking / Trekking", emoji: "🥾", category: "Adventure" },
+  { id: "photography", label: "Photography", emoji: "📸", category: "Leisure" },
+  { id: "cultural-immersion", label: "Cultural Immersion", emoji: "🎭", category: "Culture" },
+  { id: "museum-tours", label: "Museum Tours", emoji: "🏛️", category: "Culture" },
+  { id: "zipline", label: "Zipline Ride", emoji: "🪂", category: "Adventure" },
+  { id: "monkey-bridge", label: "Monkey Bridge", emoji: "🌉", category: "Adventure" },
+  { id: "bird-watching", label: "Bird Watching", emoji: "🦅", category: "Nature" },
+  { id: "cliff-diving", label: "Cliff Diving", emoji: "🏊‍♂️", category: "Adventure" },
+  { id: "river-trekking", label: "River Trekking", emoji: "🏞️", category: "Adventure" },
+  { id: "rafting", label: "Rafting", emoji: "🛶", category: "Water" },
+  { id: "mini-canyoneering", label: "Mini-Canyoneering", emoji: "🏔️", category: "Adventure" },
+  { id: "jogging", label: "Jogging", emoji: "🏃", category: "Adventure" },
+  { id: "meditation", label: "Meditation", emoji: "🧘", category: "Leisure" },
+  { id: "church-tours", label: "Church Tours", emoji: "⛪", category: "Culture" },
+];
 
 export const provinces: Province[] = [
   // Davao de Oro
@@ -42,6 +192,7 @@ export const provinces: Province[] = [
     tagline: "Golden Adventures Await",
     icon: Mountain,
     color: "from-yellow-400 to-amber-600",
+    activities: davaoDeOroActivities,
     spots: [
       { name: "Compostela Municipal Plaza", category: "City Tours", lat: 7.4139, lng: 125.9685, image: "compostela-municipal-plaza.jpg" },
       { name: "Pantukan Municipal Plaza", category: "City Tours", lat: 7.2, lng: 126.1980, image: "pantukan-municipal-plaza.jpg" },
@@ -67,6 +218,7 @@ export const provinces: Province[] = [
     tagline: "Nature's Paradise",
     icon: TreePine,
     color: "from-green-400 to-emerald-600",
+    activities: davaDelNorteActivities,
     spots: [
       { name: "Camp Holiday Resort & Recreation Area", category: "Beach", lat: 7.1388, lng: 125.6866, image: "camp-holiday-resort-and-recreation-area.jpg" },
       { name: "Chemas by the Sea", category: "Beach", lat: 7.14, lng: 125.7, image: "chemas-by-the-sea.jpg" },
@@ -103,6 +255,7 @@ export const provinces: Province[] = [
     tagline: "Cultural Heart",
     icon: Sun,
     color: "from-orange-400 to-red-600",
+    activities: davaoDelSurActivities,
     spots: [
       { name: "Mt Apo", category: "Rural", lat: 6.9833, lng: 125.2667, image: "mt-apo.jpg" },
       { name: "Lake Venado", category: "Rural", lat: 6.9919, lng: 125.2789, image: "lake-venado.jpg" },
@@ -143,6 +296,7 @@ export const provinces: Province[] = [
     tagline: "Hidden Coastal Gems",
     icon: Waves,
     color: "from-cyan-400 to-blue-600",
+    activities: davaoOccidentalActivities,
     spots: [
       { name: "Malalag Bay", category: "Beach", lat: 5.9933, lng: 125.3667, image: "malalag-bay.jpg" },
       { name: "Cape San Agustin", category: "Beach", lat: 5.9, lng: 125.5333, image: "cape-san-agustin.jpg" },
@@ -187,6 +341,7 @@ export const provinces: Province[] = [
     tagline: "Sunrise Coast",
     icon: Compass,
     color: "from-sky-400 to-indigo-600",
+    activities: davaoOrientalActivities,
     spots: [
       { name: "Dahican Beach", category: "Beach", lat: 6.9123, lng: 126.2201, image: "dahican-beach.jpg" },
       { name: "Aliwagwag Falls", category: "Rural", lat: 6.918, lng: 126.24, image: "aliwagwag-falls.jpg" },
@@ -227,4 +382,3 @@ export const countSpotsByCategory = (province: Province): Record<Category, numbe
     return acc;
   }, {} as Record<Category, number>);
 };
-

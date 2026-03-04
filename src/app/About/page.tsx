@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { Target, Users, MapPin, Sparkles, GraduationCap, Heart, ChevronDown } from "lucide-react";
+import { Waypoints, Goal, MapPin, Sparkles, GraduationCap, Heart, ChevronDown, Eye } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 
@@ -36,16 +36,15 @@ const teamMembers = [
   "Siatan, Aadi Marzilo B.",
 ];
 
-// Extract last name for image filename
+// Extract last name preserving original casing to match filenames on Vercel's case-sensitive filesystem
 function getLastName(fullName: string): string {
   // Format is "LastName, FirstName MiddleInitial"
-  const lastName = fullName.split(",")[0].trim().toLowerCase();
-  return lastName;
+  return fullName.split(",")[0].trim();
 }
 
 const features = [
   {
-    icon: Target,
+    icon: Waypoints,
     title: "Smart Planning",
     description: "AI-powered itinerary generation that adapts to your preferences and creates optimized travel plans.",
     color: "from-blue-500 to-cyan-500",
@@ -57,7 +56,7 @@ const features = [
     color: "from-purple-500 to-pink-500",
   },
   {
-    icon: Sparkles,
+    icon: Goal,
     title: "Goals Aligning",
     description: "Every destination carefully selected to match your travel goals and create unforgettable experiences.",
     color: "from-orange-500 to-red-500",
@@ -132,7 +131,7 @@ export default function About() {
           transition={{ duration: 5, repeat: Infinity }}
           className="absolute bottom-20 right-10 text-purple-400 opacity-20"
         >
-          <Sparkles size={100} />
+          <Goal size={100} />
         </motion.div>
       </section>
 
@@ -181,7 +180,7 @@ export default function About() {
               className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20"
             >
               <div className="flex items-center gap-3 mb-6">
-                <Target size={32} />
+                <Waypoints size={32} />
                 <h3 className="text-3xl font-bold">Our Mission</h3>
               </div>
               <p className="text-lg leading-relaxed text-white/90">
@@ -197,7 +196,7 @@ export default function About() {
               className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20"
             >
               <div className="flex items-center gap-3 mb-6">
-                <Sparkles size={32} />
+                <Eye size={32} />
                 <h3 className="text-3xl font-bold">Our Vision</h3>
               </div>
               <p className="text-lg leading-relaxed text-white/90">
